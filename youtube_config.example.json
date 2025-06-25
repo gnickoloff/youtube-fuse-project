@@ -1,0 +1,13 @@
+{
+  "api_key": "YOUR_YOUTUBE_API_KEY_HERE",
+  "client_secrets_file": "client_secrets.json",
+  "use_oauth": true,
+  "playlists": {
+    "watch_later": true,
+    "custom_playlists": [
+      "PLrAXtmRdnEQy6nuLMfO6uiyzVb7x_u0Tg"
+    ]
+  },
+  "refresh_interval": 300,
+  "video_quality": "best[ext=mp4]/best"
+}

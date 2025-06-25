@@ -30,7 +30,7 @@ class YouTubeAPIFUSE(Operations):
         self.refresh_videos()
     
     def load_config(self):
-        """Load configuration from JSON file"""
+        """Load configuration from JSON file and environment variables"""
         default_config = {
             "api_key": "",  # For public playlists only
             "client_secrets_file": "client_secrets.json",  # For OAuth (Watch Later)
@@ -43,20 +43,55 @@ class YouTubeAPIFUSE(Operations):
             "video_quality": "best[ext=mp4]/best"
         }
         
+        # Try to load config file
+        config = default_config.copy()
         try:
             with open(self.config_file, 'r') as f:
-                config = json.load(f)
-                # Merge with defaults
-                for key, value in default_config.items():
-                    if key not in config:
-                        config[key] = value
-                return config
+                file_config = json.load(f)
+                # Merge file config with defaults
+                for key, value in file_config.items():
+                    config[key] = value
         except FileNotFoundError:
-            print(f"Config file {self.config_file} not found. Creating default...")
+            print(f"Config file {self.config_file} not found. Creating template...")
             with open(self.config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
-            print(f"Please edit {self.config_file} with your API credentials")
-            sys.exit(1)
+            print(f"Template config created: {self.config_file}")
+        
+        # Override with environment variables (these take priority)
+        env_api_key = os.environ.get('YOUTUBE_API_KEY')
+        if env_api_key:
+            config['api_key'] = env_api_key
+            print("✓ Using API key from environment variable")
+        
+        env_secrets_file = os.environ.get('YOUTUBE_CLIENT_SECRETS')
+        if env_secrets_file:
+            config['client_secrets_file'] = env_secrets_file
+            print(f"✓ Using client secrets from: {env_secrets_file}")
+        
+        env_use_oauth = os.environ.get('YOUTUBE_USE_OAUTH')
+        if env_use_oauth:
+            config['use_oauth'] = env_use_oauth.lower() in ('true', '1', 'yes')
+            print(f"✓ OAuth mode set to: {config['use_oauth']}")
+        
+        # Validate credentials are available
+        if config['use_oauth']:
+            if not os.path.exists(config['client_secrets_file']):
+                print(f"\n❌ OAuth enabled but client secrets file not found: {config['client_secrets_file']}")
+                print("Either:")
+                print("1. Download client_secrets.json from Google Cloud Console")
+                print("2. Set YOUTUBE_CLIENT_SECRETS environment variable")
+                print("3. Set use_oauth=false in config to use API key instead")
+                sys.exit(1)
+        else:
+            if not config['api_key']:
+                print(f"\n❌ API key authentication selected but no API key found!")
+                print("Either:")
+                print("1. Set YOUTUBE_API_KEY environment variable")
+                print("2. Add api_key to your config file")
+                print("3. Set use_oauth=true to use OAuth instead")
+                sys.exit(1)
+        
+        return config
     
     def authenticate(self):
         """Authenticate with YouTube API"""
@@ -93,16 +128,17 @@ class YouTubeAPIFUSE(Operations):
                 token.write(creds.to_json())
         
         self.youtube_service = build('youtube', 'v3', credentials=creds)
-        print("OAuth authentication successful")
+        print("✅ OAuth authentication successful")
     
     def authenticate_api_key(self):
         """API key authentication for public playlists only"""
         if not self.config['api_key']:
-            print("API key not configured!")
+            print("❌ API key not configured!")
+            print("Set it with: export YOUTUBE_API_KEY='your-key-here'")
             sys.exit(1)
         
         self.youtube_service = build('youtube', 'v3', developerKey=self.config['api_key'])
-        print("API key authentication successful")
+        print("✅ API key authentication successful")
     
     def get_watch_later_playlist(self):
         """Get Watch Later playlist items"""
