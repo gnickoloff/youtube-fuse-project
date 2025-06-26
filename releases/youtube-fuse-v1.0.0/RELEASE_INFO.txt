@@ -1,0 +1,33 @@
+YouTube FUSE Filesystem v1.0.0
+Release Date: 2025-06-25
+Git Tag: v1.0.0
+
+🎉 FIRST STABLE RELEASE! 🎉
+
+This is the first production-ready release of YouTube FUSE Filesystem.
+Perfect for HTPC systems, media centers, and development environments.
+
+QUICK START:
+1. Extract this package
+2. Run: ./install.sh
+3. Follow the setup prompts
+4. Access your YouTube library at /srv/youtube
+
+FEATURES:
+✅ Mount YouTube playlists as virtual video files
+✅ OAuth authentication for private playlists
+✅ Auto-discovery of all user playlists
+✅ Systemd service integration
+✅ HTPC optimization (MythTV support)
+✅ Professional installer/uninstaller
+✅ Secure credential management
+✅ Cross-platform FUSE support
+
+REQUIREMENTS:
+- Linux/macOS with FUSE support
+- Python 3.7+
+- sudo access for installation
+
+For detailed information, see README.md and PREREQUISITES.md
+
+Repository: https://github.com/your-username/youtube-fuse-project
