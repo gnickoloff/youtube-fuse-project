@@ -1,0 +1,18 @@
+[Unit]
+Description=YouTube FUSE Filesystem
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gnicko
+Group=gnicko
+WorkingDirectory=/home/gnicko/Development/youtube-fuse-project
+ExecStart=/home/gnicko/Development/youtube-fuse-project/venv/bin/python youtube_api_fuse.py /srv/youtube
+ExecStop=/bin/fusermount -u /srv/youtube
+Restart=always
+RestartSec=10
+Environment=HOME=/home/gnicko
+
+[Install]
+WantedBy=multi-user.target
