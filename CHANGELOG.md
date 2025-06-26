@@ -1,5 +1,48 @@
 # YouTube FUSE Filesystem - Release Notes
 
+## Version 1.1.0 - 2025-01-14
+
+🕒 **Authentic Timestamp Support**
+
+### 🆕 New Features
+
+#### 📅 **YouTube Publish Date Integration**
+- **File timestamps now reflect actual YouTube publish dates** - Videos in the mounted filesystem show their real YouTube publish date as the file modification time
+- Enhanced metadata accuracy for media organization
+- Better integration with backup tools and media applications that sort by date
+- Authentic file attributes that match the original content timeline
+
+### 🔧 **Technical Improvements**
+- Modified FUSE `getattr()` to extract and use YouTube video `publishedAt` metadata
+- Automatic conversion of ISO 8601 timestamp format to Unix timestamp
+- Fallback to current time if publish date is unavailable
+- Maintains compatibility with all existing functionality
+
+### 💡 **Benefits**
+- **Media Library Organization**: Sort videos by actual publish date in file managers
+- **Authentic Metadata**: File properties reflect real YouTube timeline
+- **Backup Consistency**: Timestamp preservation across backup operations
+- **Timeline Accuracy**: Historical context preserved in filesystem view
+
+### 📋 **Example Usage**
+```bash
+# See real YouTube publish dates
+ls -la /srv/youtube/Watch\ Later/
+# -rw-r--r-- 1 mythtv mythtv 0 Dec 15  2023 My Video.mp4
+#                                ^^^^^^^^^^^^^
+#                                Actual YouTube publish date
+
+# Use with media tools that respect timestamps
+find /srv/youtube -type f -newermt "2024-01-01" | head -10
+```
+
+### ⬆️ **Upgrade Notes**
+- Fully backward compatible - no configuration changes needed
+- Existing mounts will automatically show correct timestamps after restart
+- All previous functionality remains unchanged
+
+---
+
 ## Version 1.0.0 - 2025-06-25
 
 🎉 **First Stable Release!**

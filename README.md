@@ -11,6 +11,7 @@ A FUSE-based filesystem that mounts YouTube playlists as virtual video files on 
 - 🎬 Watch Later playlist support
 - 📱 HTTP range requests for video seeking
 - 🔄 Auto-refresh playlist contents
+- 📅 Authentic file timestamps (YouTube publish dates)
 
 ## Requirements
 
@@ -137,8 +138,26 @@ ffmpeg -i "./mount-point/My Video.mp4" -ss 10 -vframes 1 thumb.jpg
 1. **Authentication**: Connects to YouTube API using OAuth or API key
 2. **Playlist Fetching**: Retrieves video metadata from configured playlists
 3. **Virtual Files**: Creates virtual `.mp4` files in the mount directory
-4. **Stream Resolution**: Uses `yt-dlp` to resolve actual video stream URLs
-5. **HTTP Proxying**: Forwards read requests to YouTube's servers with range support
+4. **Authentic Timestamps**: Sets file modification time to match YouTube publish date
+5. **Stream Resolution**: Uses `yt-dlp` to resolve actual video stream URLs
+6. **HTTP Proxying**: Forwards read requests to YouTube's servers with range support
+
+### File Timestamps Feature
+
+Videos in the mounted filesystem show their **actual YouTube publish date** as the file modification time. This means:
+
+- `ls -la` shows when the video was originally published on YouTube
+- File managers display authentic creation dates
+- Media applications can sort by actual publish date
+- Backup tools respect original timestamps
+
+```bash
+# Example: See real publish dates
+ls -la /srv/youtube/Watch\ Later/
+# -rw-r--r-- 1 mythtv mythtv 0 Dec 15  2023 My Video.mp4
+#                                ^^^^^^^^^^^^^
+#                                Actual YouTube publish date
+```
 
 ## Troubleshooting
 
