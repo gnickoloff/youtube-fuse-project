@@ -12,6 +12,7 @@ A FUSE-based filesystem that mounts YouTube playlists as virtual video files on 
 - 📱 HTTP range requests for video seeking
 - 🔄 Auto-refresh playlist contents
 - 📅 Authentic file timestamps (YouTube publish dates)
+- 📅 Authentic file timestamps (YouTube publish dates)
 
 ## Requirements
 
