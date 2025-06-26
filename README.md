@@ -14,9 +14,15 @@ A FUSE-based filesystem that mounts YouTube playlists as virtual video files on 
 
 ## Requirements
 
+### Quick Prerequisites Check
+- **Linux/macOS** with FUSE support
+- **Python 3.7+** 
+- **Git** for installation
+- **sudo access** for system integration
+
+**👉 For detailed requirements and installation instructions, see [PREREQUISITES.md](PREREQUISITES.md)**
+
 ### System Dependencies
-- **Linux/macOS** (FUSE support required)
-- **Python 3.7+**
 - **FUSE libraries**:
   - Ubuntu/Debian: `sudo apt install fuse libfuse-dev`
   - CentOS/RHEL: `sudo yum install fuse fuse-devel`
@@ -177,6 +183,65 @@ source venv/bin/activate
 - YouTube rate limits apply
 - Stream URLs expire (handled automatically)
 - Linux/macOS only (no Windows FUSE support)
+
+## Distribution & Installation
+
+### For End Users
+
+1. **Download the project**:
+   ```bash
+   git clone <your-repo-url>
+   cd youtube-fuse-project
+   ```
+
+2. **Run the installer**:
+   ```bash
+   ./install.sh
+   ```
+   
+   The installer will:
+   - Set up Python virtual environment
+   - Install all dependencies
+   - Configure systemd service
+   - Set up mount point
+   - Start the service automatically
+
+3. **Set up credentials** (if not done already):
+   - Follow the OAuth setup instructions above
+   - Place `client_secrets.json` in the project directory
+
+4. **Access your videos**:
+   ```bash
+   ls /srv/youtube/  # Default mount point
+   ```
+
+### For Developers/Distributors
+
+The project includes template files for easy distribution:
+
+- `youtube-fuse.service.template` - Systemd service template
+- `install.sh` - Automated installation script
+- `uninstall.sh` - Clean removal script
+
+The installer automatically:
+- Detects the current user and system paths
+- Creates appropriate systemd service file
+- Sets up mount points with correct permissions
+- Handles all system integration
+
+### Uninstalling
+
+To remove the YouTube FUSE filesystem:
+
+```bash
+./uninstall.sh
+```
+
+This will:
+- Stop and disable the systemd service
+- Unmount the filesystem
+- Remove service files
+- Optionally clean up mount points
 
 ## Contributing
 

@@ -57,6 +57,8 @@ class YouTubeAPIFUSE(Operations):
             print(f"Config file {self.config_file} not found. Creating template...")
             with open(self.config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
+            # Secure the config file
+            os.chmod(self.config_file, 0o600)
             print(f"Template config created: {self.config_file}")
         
         # Override with environment variables (these take priority)

@@ -13,11 +13,19 @@ cp youtube_api_fuse.py "dist/$PACKAGE_NAME/"
 cp requirements.txt "dist/$PACKAGE_NAME/"
 cp setup.sh "dist/$PACKAGE_NAME/"
 cp README.md "dist/$PACKAGE_NAME/"
+cp PREREQUISITES.md "dist/$PACKAGE_NAME/"
 cp youtube_config.example.json "dist/$PACKAGE_NAME/"
 cp .gitignore "dist/$PACKAGE_NAME/"
+cp install.sh "dist/$PACKAGE_NAME/"
+cp uninstall.sh "dist/$PACKAGE_NAME/"
+cp usage_examples.sh "dist/$PACKAGE_NAME/"
+cp youtube-fuse.service.template "dist/$PACKAGE_NAME/"
 
-# Make setup script executable
+# Make scripts executable
 chmod +x "dist/$PACKAGE_NAME/setup.sh"
+chmod +x "dist/$PACKAGE_NAME/install.sh"
+chmod +x "dist/$PACKAGE_NAME/uninstall.sh"
+chmod +x "dist/$PACKAGE_NAME/usage_examples.sh"
 
 # Create archive
 cd dist
