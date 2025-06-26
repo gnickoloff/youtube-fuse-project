@@ -3,10 +3,6 @@ client_secrets.json
 token.json
 youtube_config.json
 
-# Local system-specific scripts (not for distribution)
-switch_to_*.sh
-youtube-fuse.service.original
-
 # Python
 __pycache__/
 *.pyc
