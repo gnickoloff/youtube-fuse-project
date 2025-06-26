@@ -7,6 +7,7 @@ import stat
 import threading
 import time
 import json
+from datetime import datetime
 from fuse import FUSE, FuseOSError, Operations
 import yt_dlp
 import requests
@@ -21,7 +22,6 @@ class YouTubeAPIFUSE(Operations):
         self.config = self.load_config()
         self.youtube_service = None
         self.videos = {}  # Cache video metadata
-        self.playlists = {}  # Cache playlist metadata
         self.stream_cache = {}  # Cache stream URLs temporarily
         self.cache_lock = threading.Lock()
         self.last_refresh = 0
@@ -37,7 +37,6 @@ class YouTubeAPIFUSE(Operations):
             "client_secrets_file": "client_secrets.json",  # For OAuth (Watch Later)
             "use_oauth": True,  # Set to False for API key only
             "playlists": {
-                "auto_discover": False,  # Auto-discover all user playlists
                 "watch_later": True,  # Special case
                 "custom_playlists": []  # List of playlist IDs
             },
@@ -57,8 +56,6 @@ class YouTubeAPIFUSE(Operations):
             print(f"Config file {self.config_file} not found. Creating template...")
             with open(self.config_file, 'w') as f:
                 json.dump(default_config, f, indent=2)
-            # Secure the config file
-            os.chmod(self.config_file, 0o600)
             print(f"Template config created: {self.config_file}")
         
         # Override with environment variables (these take priority)
@@ -174,29 +171,6 @@ class YouTubeAPIFUSE(Operations):
             print(f"Error fetching Watch Later: {e}")
             return []
     
-    def get_playlist_info(self, playlist_id):
-        """Get playlist title and info"""
-        try:
-            response = self.youtube_service.playlists().list(
-                part='snippet',
-                id=playlist_id
-            ).execute()
-            
-            if response['items']:
-                return {
-                    'id': playlist_id,
-                    'title': response['items'][0]['snippet']['title'],
-                    'safe_title': self.sanitize_filename(response['items'][0]['snippet']['title'])
-                }
-        except Exception as e:
-            print(f"Error fetching playlist info for {playlist_id}: {e}")
-        
-        return {
-            'id': playlist_id,
-            'title': f"Playlist {playlist_id}",
-            'safe_title': f"playlist_{playlist_id[:8]}"
-        }
-    
     def get_playlist_videos(self, playlist_id):
         """Get videos from a specific playlist"""
         videos = []
@@ -216,7 +190,6 @@ class YouTubeAPIFUSE(Operations):
                     if item['snippet']['resourceId']['kind'] == 'youtube#video':
                         video_id = item['snippet']['resourceId']['videoId']
                         title = item['snippet']['title']
-                        published_at = item['snippet'].get('publishedAt')
                         
                         # Skip deleted/private videos
                         if title != 'Deleted video' and title != 'Private video':
@@ -224,7 +197,7 @@ class YouTubeAPIFUSE(Operations):
                                 'id': video_id,
                                 'title': title,
                                 'url': f'https://youtube.com/watch?v={video_id}',
-                                'published_at': published_at
+                                'publishedAt': item['snippet'].get('publishedAt')
                             })
                 
                 next_page_token = response.get('nextPageToken')
@@ -236,44 +209,6 @@ class YouTubeAPIFUSE(Operations):
         
         return videos
     
-    def get_all_user_playlists(self):
-        """Get all playlists for the authenticated user"""
-        if not self.config['use_oauth']:
-            print("Auto-discovery requires OAuth authentication")
-            return []
-        
-        playlists = []
-        next_page_token = None
-        
-        try:
-            while True:
-                request = self.youtube_service.playlists().list(
-                    part='snippet',
-                    mine=True,
-                    maxResults=50,
-                    pageToken=next_page_token
-                )
-                response = request.execute()
-                
-                for item in response['items']:
-                    # Skip auto-generated playlists like "Liked videos"
-                    title = item['snippet']['title']
-                    if title not in ['Liked videos', 'Uploads']:
-                        playlists.append({
-                            'id': item['id'],
-                            'title': title,
-                            'safe_title': self.sanitize_filename(title)
-                        })
-                
-                next_page_token = response.get('nextPageToken')
-                if not next_page_token:
-                    break
-                    
-        except Exception as e:
-            print(f"Error fetching user playlists: {e}")
-        
-        return playlists
-
     def refresh_videos(self):
         """Fetch all configured playlists and build video cache"""
         current_time = time.time()
@@ -282,68 +217,42 @@ class YouTubeAPIFUSE(Operations):
         
         print("Refreshing videos from YouTube API...")
         new_videos = {}
-        new_playlists = {}
-        
-        # Auto-discover all user playlists if enabled
-        if self.config['playlists'].get('auto_discover', False):
-            print("Auto-discovering all user playlists...")
-            user_playlists = self.get_all_user_playlists()
-            for playlist in user_playlists:
-                print(f"Fetching playlist: {playlist['title']}")
-                new_playlists[playlist['safe_title']] = playlist
-                
-                playlist_videos = self.get_playlist_videos(playlist['id'])
-                for video in playlist_videos:
-                    filename = f"{playlist['safe_title']}/{self.sanitize_filename(video['title'])}.mp4"
-                    new_videos[filename] = self.create_video_entry(video)
         
         # Get Watch Later if configured
         if self.config['playlists']['watch_later']:
             print("Fetching Watch Later playlist...")
-            playlist_info = {
-                'id': 'WL',
-                'title': 'Watch Later',
-                'safe_title': 'watch_later'
-            }
-            new_playlists['watch_later'] = playlist_info
-            
             watch_later_videos = self.get_watch_later_playlist()
             for video in watch_later_videos:
-                filename = f"watch_later/{self.sanitize_filename(video['title'])}.mp4"
+                filename = f"[WL] {self.sanitize_filename(video['title'])}.mp4"
                 new_videos[filename] = self.create_video_entry(video)
         
         # Get custom playlists
         for playlist_id in self.config['playlists']['custom_playlists']:
             print(f"Fetching playlist {playlist_id}...")
-            playlist_info = self.get_playlist_info(playlist_id)
-            new_playlists[playlist_info['safe_title']] = playlist_info
-            
             playlist_videos = self.get_playlist_videos(playlist_id)
             for video in playlist_videos:
-                filename = f"{playlist_info['safe_title']}/{self.sanitize_filename(video['title'])}.mp4"
+                filename = f"{self.sanitize_filename(video['title'])}.mp4"
                 new_videos[filename] = self.create_video_entry(video)
         
-        # Update caches
+        # Update video cache
         with self.cache_lock:
             self.videos = new_videos
-            self.playlists = new_playlists
             self.last_refresh = current_time
         
-        print(f"Loaded {len(new_videos)} videos across {len(new_playlists)} playlists")
+        print(f"Loaded {len(new_videos)} videos")
     
     def create_video_entry(self, video_data):
-        """Create a video cache entry"""
-        # Parse the published date if available
+        """Create a video cache entry with YouTube publish date as mtime"""
+        # Extract YouTube publish date for authentic timestamps
         mtime = time.time()  # Default to current time
-        if 'published_at' in video_data and video_data['published_at']:
+        if 'publishedAt' in video_data:
             try:
-                # YouTube API returns ISO 8601 format: 2023-12-25T15:30:00Z
-                from datetime import datetime
-                published_dt = datetime.fromisoformat(video_data['published_at'].replace('Z', '+00:00'))
+                # Parse ISO 8601 timestamp from YouTube API
+                published_dt = datetime.fromisoformat(video_data['publishedAt'].replace('Z', '+00:00'))
                 mtime = published_dt.timestamp()
-            except (ValueError, ImportError):
-                # Fall back to current time if parsing fails
-                pass
+                print(f"Using publish date {video_data['publishedAt']} for {video_data['title'][:50]}...")
+            except Exception as e:
+                print(f"Error parsing publish date for {video_data['title']}: {e}")
         
         return {
             'id': video_data['id'],
@@ -351,7 +260,6 @@ class YouTubeAPIFUSE(Operations):
             'url': video_data['url'],
             'size': 100 * 1024 * 1024,  # Default 100MB estimate
             'mtime': mtime,
-            'published_at': video_data.get('published_at')
         }
     
     def sanitize_filename(self, title):
@@ -419,30 +327,17 @@ class YouTubeAPIFUSE(Operations):
         if path == '/':
             st = dict(st_mode=(stat.S_IFDIR | 0o755), st_nlink=2)
         else:
-            path_parts = path.strip('/').split('/')
-            
-            if len(path_parts) == 1:
-                # This is a playlist directory
-                playlist_name = path_parts[0]
-                if playlist_name in self.playlists:
-                    st = dict(st_mode=(stat.S_IFDIR | 0o755), st_nlink=2)
-                else:
-                    raise FuseOSError(errno.ENOENT)
-            elif len(path_parts) == 2:
-                # This is a video file
-                filepath = path[1:]  # Remove leading slash
-                if filepath in self.videos:
-                    video = self.videos[filepath]
-                    st = dict(
-                        st_mode=(stat.S_IFREG | 0o644),
-                        st_nlink=1,
-                        st_size=video['size'],
-                        st_mtime=video['mtime'],
-                        st_atime=video['mtime'],
-                        st_ctime=video['mtime']
-                    )
-                else:
-                    raise FuseOSError(errno.ENOENT)
+            filename = path[1:]
+            if filename in self.videos:
+                video = self.videos[filename]
+                st = dict(
+                    st_mode=(stat.S_IFREG | 0o644),
+                    st_nlink=1,
+                    st_size=video['size'],
+                    st_mtime=video['mtime'],
+                    st_atime=video['mtime'],
+                    st_ctime=video['mtime']
+                )
             else:
                 raise FuseOSError(errno.ENOENT)
         
@@ -455,35 +350,24 @@ class YouTubeAPIFUSE(Operations):
         self.refresh_videos()
         
         if path == '/':
-            # Root directory - list playlist directories
-            return ['.', '..'] + list(self.playlists.keys())
+            return ['.', '..'] + list(self.videos.keys())
         else:
-            # Playlist directory - list video files
-            playlist_name = path.strip('/').split('/')[0]
-            if playlist_name in self.playlists:
-                videos_in_playlist = [
-                    os.path.basename(filepath) 
-                    for filepath in self.videos.keys() 
-                    if filepath.startswith(playlist_name + '/')
-                ]
-                return ['.', '..'] + videos_in_playlist
-            else:
-                raise FuseOSError(errno.ENOENT)
+            raise FuseOSError(errno.ENOENT)
     
     def open(self, path, flags):
         """Open file for reading"""
-        filepath = path[1:]  # Remove leading slash
-        if filepath not in self.videos:
+        filename = path[1:]
+        if filename not in self.videos:
             raise FuseOSError(errno.ENOENT)
-        return hash(filepath) % 1000000
+        return hash(filename) % 1000000
     
     def read(self, path, length, offset, fh):
         """Read data from file"""
-        filepath = path[1:]  # Remove leading slash
-        if filepath not in self.videos:
+        filename = path[1:]
+        if filename not in self.videos:
             raise FuseOSError(errno.ENOENT)
         
-        video = self.videos[filepath]
+        video = self.videos[filename]
         stream_url = self.get_stream_url(video['id'])
         
         if not stream_url:
@@ -499,7 +383,7 @@ class YouTubeAPIFUSE(Operations):
                 raise FuseOSError(errno.EIO)
                 
         except Exception as e:
-            print(f"Error reading {filepath}: {e}")
+            print(f"Error reading {filename}: {e}")
             raise FuseOSError(errno.EIO)
 
 def main():
