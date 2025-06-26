@@ -37,6 +37,7 @@ class YouTubeAPIFUSE(Operations):
             "client_secrets_file": "client_secrets.json",  # For OAuth (Watch Later)
             "use_oauth": True,  # Set to False for API key only
             "playlists": {
+                "auto_discover": False,  # Auto-discover all user playlists
                 "watch_later": True,  # Special case
                 "custom_playlists": []  # List of playlist IDs
             },
@@ -231,6 +232,44 @@ class YouTubeAPIFUSE(Operations):
         
         return videos
     
+    def get_all_user_playlists(self):
+        """Get all playlists for the authenticated user"""
+        if not self.config['use_oauth']:
+            print("Auto-discovery requires OAuth authentication")
+            return []
+        
+        playlists = []
+        next_page_token = None
+        
+        try:
+            while True:
+                request = self.youtube_service.playlists().list(
+                    part='snippet',
+                    mine=True,
+                    maxResults=50,
+                    pageToken=next_page_token
+                )
+                response = request.execute()
+                
+                for item in response['items']:
+                    # Skip auto-generated playlists like "Liked videos"
+                    title = item['snippet']['title']
+                    if title not in ['Liked videos', 'Uploads']:
+                        playlists.append({
+                            'id': item['id'],
+                            'title': title,
+                            'safe_title': self.sanitize_filename(title)
+                        })
+                
+                next_page_token = response.get('nextPageToken')
+                if not next_page_token:
+                    break
+                    
+        except Exception as e:
+            print(f"Error fetching user playlists: {e}")
+        
+        return playlists
+
     def refresh_videos(self):
         """Fetch all configured playlists and build video cache"""
         current_time = time.time()
@@ -240,6 +279,19 @@ class YouTubeAPIFUSE(Operations):
         print("Refreshing videos from YouTube API...")
         new_videos = {}
         new_playlists = {}
+        
+        # Auto-discover all user playlists if enabled
+        if self.config['playlists'].get('auto_discover', False):
+            print("Auto-discovering all user playlists...")
+            user_playlists = self.get_all_user_playlists()
+            for playlist in user_playlists:
+                print(f"Fetching playlist: {playlist['title']}")
+                new_playlists[playlist['safe_title']] = playlist
+                
+                playlist_videos = self.get_playlist_videos(playlist['id'])
+                for video in playlist_videos:
+                    filename = f"{playlist['safe_title']}/{self.sanitize_filename(video['title'])}.mp4"
+                    new_videos[filename] = self.create_video_entry(video)
         
         # Get Watch Later if configured
         if self.config['playlists']['watch_later']:

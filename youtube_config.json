@@ -3,10 +3,9 @@
   "client_secrets_file": "client_secrets.json",
   "use_oauth": true,
   "playlists": {
+    "auto_discover": true,
     "watch_later": false,
-    "custom_playlists": [
-      "PL38rwEZ61GyZught1lwbTStLRkvGuUkBk"
-    ]
+    "custom_playlists": []
   },
   "refresh_interval": 300,
   "video_quality": "best[ext=mp4]/best"
