@@ -51,6 +51,13 @@ check_requirements() {
         exit 1
     fi
     
+    # Check if FUSE is available
+    if ! command -v fusermount &> /dev/null; then
+        print_error "FUSE is required but not installed."
+        print_info "Install with: sudo apt install fuse libfuse-dev"
+        exit 1
+    fi
+    
     # Check if we're in the project directory
     if [[ ! -f "youtube_api_fuse.py" ]]; then
         print_error "Please run this script from the youtube-fuse-project directory."
@@ -188,6 +195,19 @@ EOF
     print_info "Credentials check passed"
 }
 
+setup_fuse_config() {
+    print_step "Configuring FUSE permissions..."
+    
+    # Check if user_allow_other is already enabled
+    if ! grep -q "^user_allow_other" /etc/fuse.conf 2>/dev/null; then
+        print_info "Enabling user_allow_other in /etc/fuse.conf..."
+        echo "user_allow_other" | sudo tee -a /etc/fuse.conf >/dev/null
+        print_info "FUSE configured for file manager visibility"
+    else
+        print_info "FUSE already properly configured"
+    fi
+}
+
 start_service() {
     print_step "Starting service..."
     
@@ -260,6 +280,7 @@ cleanup() {
 main() {
     print_header
     check_requirements
+    setup_fuse_config
     setup_python_environment
     get_user_input
     check_credentials

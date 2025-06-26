@@ -39,7 +39,7 @@ sudo apt install fuse libfuse-dev
 
 # CentOS/RHEL
 sudo yum install fuse fuse-devel
-# Enable user_allow_other
+# Enable user_allow_other in fuse.conf (if not already enabled)
 echo "user_allow_other" | sudo tee -a /etc/fuse.conf
 
 # Fedora
@@ -48,6 +48,8 @@ sudo dnf install fuse fuse-devel
 # macOS
 # Download and install macFUSE from: https://osxfuse.github.io/
 ```
+
+**Important for file manager integration:** The installer automatically enables `user_allow_other` in `/etc/fuse.conf`, which allows the FUSE filesystem to be properly visible in GUI file managers like Thunar, Nautilus, etc.
 
 #### 3. Git (for installation)
 ```bash
