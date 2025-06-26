@@ -216,13 +216,15 @@ class YouTubeAPIFUSE(Operations):
                     if item['snippet']['resourceId']['kind'] == 'youtube#video':
                         video_id = item['snippet']['resourceId']['videoId']
                         title = item['snippet']['title']
+                        published_at = item['snippet'].get('publishedAt')
                         
                         # Skip deleted/private videos
                         if title != 'Deleted video' and title != 'Private video':
                             videos.append({
                                 'id': video_id,
                                 'title': title,
-                                'url': f'https://youtube.com/watch?v={video_id}'
+                                'url': f'https://youtube.com/watch?v={video_id}',
+                                'published_at': published_at
                             })
                 
                 next_page_token = response.get('nextPageToken')
@@ -331,12 +333,25 @@ class YouTubeAPIFUSE(Operations):
     
     def create_video_entry(self, video_data):
         """Create a video cache entry"""
+        # Parse the published date if available
+        mtime = time.time()  # Default to current time
+        if 'published_at' in video_data and video_data['published_at']:
+            try:
+                # YouTube API returns ISO 8601 format: 2023-12-25T15:30:00Z
+                from datetime import datetime
+                published_dt = datetime.fromisoformat(video_data['published_at'].replace('Z', '+00:00'))
+                mtime = published_dt.timestamp()
+            except (ValueError, ImportError):
+                # Fall back to current time if parsing fails
+                pass
+        
         return {
             'id': video_data['id'],
             'title': video_data['title'],
             'url': video_data['url'],
             'size': 100 * 1024 * 1024,  # Default 100MB estimate
-            'mtime': time.time()
+            'mtime': mtime,
+            'published_at': video_data.get('published_at')
         }
     
     def sanitize_filename(self, title):
