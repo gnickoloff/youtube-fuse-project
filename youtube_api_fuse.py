@@ -500,7 +500,7 @@ def main():
     os.makedirs(mount_point, exist_ok=True)
     
     try:
-        fuse = FUSE(YouTubeAPIFUSE(), mount_point, nothreads=True, foreground=True)
+        fuse = FUSE(YouTubeAPIFUSE(), mount_point, nothreads=True, foreground=True, allow_other=True)
     except KeyboardInterrupt:
         print("\nUnmounting...")
 
