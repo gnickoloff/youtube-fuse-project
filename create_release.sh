@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# YouTube FUSE Filesystem v1.0.0 Release Package Creator
+# YouTube FUSE Filesystem v1.1.0 Release Package Creator
 
-echo "🎉 Creating YouTube FUSE Filesystem v1.0.0 Release Package..."
+echo "🎉 Creating YouTube FUSE Filesystem v1.1.0 Release Package..."
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 RELEASE_NAME="youtube-fuse-v${VERSION}"
 RELEASE_DATE=$(date +%Y-%m-%d)
 
@@ -40,10 +40,10 @@ YouTube FUSE Filesystem v${VERSION}
 Release Date: ${RELEASE_DATE}
 Git Tag: v${VERSION}
 
-🎉 FIRST STABLE RELEASE! 🎉
+🕒 AUTHENTIC TIMESTAMP SUPPORT! 🕒
 
-This is the first production-ready release of YouTube FUSE Filesystem.
-Perfect for HTPC systems, media centers, and development environments.
+This release adds authentic YouTube publish date support as file timestamps.
+Enhanced metadata accuracy for better media library organization.
 
 QUICK START:
 1. Extract this package
@@ -51,7 +51,13 @@ QUICK START:
 3. Follow the setup prompts
 4. Access your YouTube library at /srv/youtube
 
-FEATURES:
+NEW FEATURES (v1.1.0):
+✅ File timestamps reflect actual YouTube publish dates
+✅ Enhanced metadata accuracy for media organization
+✅ Better integration with backup tools and media applications
+✅ Authentic file attributes that match original content timeline
+
+CORE FEATURES:
 ✅ Mount YouTube playlists as virtual video files
 ✅ OAuth authentication for private playlists
 ✅ Auto-discovery of all user playlists
@@ -104,4 +110,4 @@ echo "2. Push git tag: git push origin v${VERSION}"
 echo "3. Create GitHub release with these archives"
 echo "4. Update documentation with release notes"
 echo ""
-echo "🎯 v${VERSION} is production-ready for HTPC and media center use!"
+echo "🎯 v${VERSION} includes authentic YouTube publish date timestamps for enhanced media organization!"
