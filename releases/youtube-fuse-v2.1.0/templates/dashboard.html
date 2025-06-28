@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube FUSE Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 0; /* Allow shrinking */
+            overflow: hidden; /* Prevent content overflow */
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            min-width: 0; /* Allow shrinking */
+            overflow: hidden; /* Prevent overflow */
+        }
+        
+        .status-icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+        
+        .status-label {
+            font-weight: 600;
+            color: #555;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+        
+        .status-value {
+            margin-left: auto;
+            font-weight: bold;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .status-active {
+            border-left-color: #28a745;
+        }
+        
+        .status-inactive {
+            border-left-color: #dc3545;
+        }
+        
+        .status-warning {
+            border-left-color: #ffc107;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-warning {
+            background: linear-gradient(90deg, #ffc107, #fd7e14);
+        }
+        
+        .progress-danger {
+            background: linear-gradient(90deg, #dc3545, #e74c3c);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+        }
+        
+        .btn-emergency {
+            background: linear-gradient(135deg, #ff4757, #ff3838);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .playlist-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .playlist-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            min-width: 0; /* Allow shrinking */
+            gap: 10px; /* Add space between content and toggle */
+        }
+        
+        .playlist-item:last-child {
+            border-bottom: none;
+        }
+        
+        .playlist-info {
+            flex: 1;
+            min-width: 0; /* Allow shrinking */
+            overflow: hidden;
+        }
+        
+        .playlist-title {
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+        
+        .playlist-meta {
+            font-size: 0.85em;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .playlist-description {
+            font-size: 0.8em;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+        
+        .playlist-enabled {
+            background: rgba(40, 167, 69, 0.1);
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 25px;
+            background: #ccc;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .toggle-switch.active {
+            background: #28a745;
+        }
+        
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 21px;
+            height: 21px;
+            background: white;
+            border-radius: 50%;
+            transition: left 0.3s ease;
+        }
+        
+        .toggle-switch.active::after {
+            left: 27px;
+        }
+        
+        .config-section {
+            margin-bottom: 20px;
+        }
+        
+        .config-input {
+            width: 100%;
+            max-width: 120px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        
+        .config-input-small {
+            width: 80px;
+            max-width: 80px;
+        }
+        
+        .action-buttons {
+            margin-top: 20px;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .progress-container {
+            margin: 15px 0;
+        }
+        
+        .discovered-playlists {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .file-browser {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .file-tree {
+            list-style: none;
+        }
+        
+        .file-tree li {
+            padding: 5px 0;
+        }
+        
+        .playlist-folder {
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0 5px 0;
+        }
+        
+        .video-file {
+            margin-left: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.1) rotate(180deg);
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        
+        .alert-success {
+            background: rgba(40, 167, 69, 0.1);
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .alert-danger {
+            background: rgba(220, 53, 69, 0.1);
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .alert-warning {
+            background: rgba(255, 193, 7, 0.1);
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .btn {
+                padding: 10px 16px;
+                font-size: 0.9em;
+                margin: 3px;
+            }
+            
+            .playlist-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .toggle-switch {
+                align-self: flex-end;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .refresh-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2em;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+            
+            .status-item {
+                padding: 8px;
+            }
+            
+            .config-input-small {
+                width: 70px;
+                max-width: 70px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 YouTube FUSE Dashboard</h1>
+            <p>Control Panel for YouTube Filesystem</p>
+        </div>
+        
+        <div id="alerts"></div>
+        
+        <div class="dashboard-grid">
+            <!-- System Status -->
+            <div class="card">
+                <h2>🖥️ System Status</h2>
+                <div class="status-grid">
+                    <div class="status-item" id="fuse-status">
+                        <span class="status-icon">📁</span>
+                        <span class="status-label">FUSE Mount</span>
+                        <span class="status-value">Checking...</span>
+                    </div>
+                    <div class="status-item" id="service-status">
+                        <span class="status-icon">⚙️</span>
+                        <span class="status-label">Service</span>
+                        <span class="status-value">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon">🧠</span>
+                        <span class="status-label">CPU Usage</span>
+                        <span class="status-value" id="cpu-usage">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon">💾</span>
+                        <span class="status-label">Memory</span>
+                        <span class="status-value" id="memory-usage">-</span>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-success" onclick="controlMount('mount')">Mount</button>
+                    <button class="btn btn-warning" onclick="controlMount('unmount')">Unmount</button>
+                    <button class="btn" onclick="controlService('restart')">Restart Service</button>
+                </div>
+            </div>
+            
+            <!-- Quota Management -->
+            <div class="card">
+                <h2>📊 Quota Management</h2>
+                <div class="status-item">
+                    <span class="status-icon">🎯</span>
+                    <span class="status-label">Daily Limit</span>
+                    <span class="status-value" id="quota-limit">-</span>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-header">
+                        <span>Estimated Daily Usage</span>
+                        <span id="quota-percentage">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="quota-progress"></div>
+                    </div>
+                </div>
+                
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-icon">⏱️</span>
+                        <span class="status-label">Rate Limit</span>
+                        <span class="status-value" id="rate-limit">-</span>
+                    </div>
+                    <div class="status-item" id="emergency-status">
+                        <span class="status-icon">🚨</span>
+                        <span class="status-label">Emergency Mode</span>
+                        <span class="status-value">OFF</span>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-emergency" onclick="toggleEmergency()">Emergency Stop</button>
+                    <button class="btn btn-warning" onclick="applyPreset('minimal')">Minimal Settings</button>
+                    <button class="btn" onclick="applyPreset('conservative')">Conservative</button>
+                </div>
+            </div>
+            
+            <!-- Playlist Management -->
+            <div class="card">
+                <h2>📋 Playlist Management</h2>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-icon">🔍</span>
+                        <span class="status-label">Auto-discover</span>
+                        <div class="toggle-switch" id="auto-discover-toggle" onclick="toggleAutoDiscover()"></div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon">⏰</span>
+                        <span class="status-label">Watch Later</span>
+                        <div class="toggle-switch" id="watch-later-toggle" onclick="toggleWatchLater()"></div>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon">📁</span>
+                        <span class="status-label">Max Playlists</span>
+                        <input type="number" class="config-input config-input-small" id="max-playlists" onchange="updateConfig()" title="Maximum number of playlists to fetch">
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon">🎬</span>
+                        <span class="status-label">Max Videos</span>
+                        <input type="number" class="config-input config-input-small" id="max-videos" onchange="updateConfig()" title="Maximum videos per playlist">
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn" onclick="discoverPlaylists()">Discover Playlists</button>
+                    <button class="btn btn-success" onclick="saveConfig()">Save Changes</button>
+                </div>
+                
+                <!-- Discovered Playlists List -->
+                <div id="discovered-playlists" class="discovered-playlists">
+                    <h3>Available Playlists</h3>
+                    <div class="playlist-list" id="playlist-list"></div>
+                </div>
+            </div>
+            
+            <!-- Configuration -->
+            <div class="card">
+                <h2>⚙️ Configuration</h2>
+                <div class="config-section">
+                    <label for="refresh-interval">Refresh Interval (seconds):</label>
+                    <input type="number" class="config-input" id="refresh-interval" onchange="updateConfig()" title="How often to refresh video lists">
+                </div>
+                
+                <div class="config-section">
+                    <label for="rate-delay">Rate Limit Delay (seconds):</label>
+                    <input type="number" step="0.1" class="config-input" id="rate-delay" onchange="updateConfig()" title="Delay between API calls">
+                </div>
+                
+                <div class="config-section">
+                    <label for="quota-input">Daily Quota Limit:</label>
+                    <input type="number" class="config-input" id="quota-input" onchange="updateConfig()" title="Maximum API calls per day">
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn" onclick="loadConfig()">Reload Config</button>
+                    <button class="btn btn-success" onclick="saveConfig()">Apply Changes</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- File Browser -->
+        <div class="card">
+            <h2>📂 File Browser</h2>
+            <div class="file-browser">
+                <div class="loading" id="files-loading">
+                    <div class="spinner"></div>
+                    <p>Loading files...</p>
+                </div>
+                <div id="file-list"></div>
+            </div>
+        </div>
+    </div>
+    
+    <button class="refresh-btn" onclick="refreshAll()" title="Refresh All Data">
+        🔄
+    </button>
+    
+    <script>
+        let currentConfig = {};
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshAll();
+            setInterval(refreshStatus, 10000); // Refresh every 10 seconds
+        });
+        
+        function showAlert(message, type = 'success') {
+            const alertsDiv = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertsDiv.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+        
+        async function fetchAPI(endpoint, options = {}) {
+            try {
+                const response = await fetch(`/api${endpoint}`, options);
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'API Error');
+                }
+                return data;
+            } catch (error) {
+                showAlert(`API Error: ${error.message}`, 'danger');
+                throw error;
+            }
+        }
+        
+        async function refreshStatus() {
+            try {
+                const status = await fetchAPI('/status');
+                updateSystemStatus(status.system);
+                updateQuotaStatus(status.quota);
+                updatePlaylistStatus(status.playlists);
+            } catch (error) {
+                console.error('Failed to refresh status:', error);
+            }
+        }
+        
+        async function refreshFiles() {
+            const loadingDiv = document.getElementById('files-loading');
+            const fileListDiv = document.getElementById('file-list');
+            
+            loadingDiv.style.display = 'block';
+            fileListDiv.innerHTML = '';
+            
+            try {
+                const files = await fetchAPI('/files');
+                displayFiles(files);
+            } catch (error) {
+                fileListDiv.innerHTML = '<p>Error loading files</p>';
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+        
+        async function refreshAll() {
+            await Promise.all([refreshStatus(), refreshFiles(), loadConfig()]);
+        }
+        
+        function updateSystemStatus(system) {
+            const fuseStatus = document.getElementById('fuse-status');
+            const serviceStatus = document.getElementById('service-status');
+            
+            fuseStatus.className = `status-item ${system.fuse_mounted ? 'status-active' : 'status-inactive'}`;
+            fuseStatus.querySelector('.status-value').textContent = system.fuse_mounted ? 'Mounted' : 'Not Mounted';
+            
+            serviceStatus.className = `status-item ${system.service_status === 'active' ? 'status-active' : 'status-inactive'}`;
+            serviceStatus.querySelector('.status-value').textContent = system.service_status;
+            
+            document.getElementById('cpu-usage').textContent = `${system.cpu_usage.toFixed(1)}%`;
+            document.getElementById('memory-usage').textContent = `${system.memory_usage.toFixed(1)}%`;
+        }
+        
+        function updateQuotaStatus(quota) {
+            document.getElementById('quota-limit').textContent = quota.daily_limit.toLocaleString();
+            document.getElementById('quota-percentage').textContent = `${quota.estimated_percentage.toFixed(1)}%`;
+            document.getElementById('rate-limit').textContent = `${quota.rate_limit_delay}s`;
+            
+            const progressBar = document.getElementById('quota-progress');
+            progressBar.style.width = `${Math.min(quota.estimated_percentage, 100)}%`;
+            
+            // Color coding for quota usage
+            progressBar.className = 'progress-fill';
+            if (quota.estimated_percentage > 90) {
+                progressBar.classList.add('progress-danger');
+            } else if (quota.estimated_percentage > 70) {
+                progressBar.classList.add('progress-warning');
+            }
+            
+            // Emergency mode status
+            const emergencyStatus = document.getElementById('emergency-status');
+            emergencyStatus.className = `status-item ${quota.emergency_mode ? 'status-danger' : 'status-active'}`;
+            emergencyStatus.querySelector('.status-value').textContent = quota.emergency_mode ? 'ON' : 'OFF';
+        }
+        
+        function updatePlaylistStatus(playlists) {
+            const autoDiscoverToggle = document.getElementById('auto-discover-toggle');
+            const watchLaterToggle = document.getElementById('watch-later-toggle');
+            
+            autoDiscoverToggle.className = `toggle-switch ${playlists.auto_discover ? 'active' : ''}`;
+            watchLaterToggle.className = `toggle-switch ${playlists.watch_later ? 'active' : ''}`;
+            
+            document.getElementById('max-playlists').value = playlists.max_playlists;
+            document.getElementById('max-videos').value = playlists.max_videos_per_playlist;
+        }
+        
+        function displayFiles(files) {
+            const fileListDiv = document.getElementById('file-list');
+            
+            if (files.length === 0) {
+                fileListDiv.innerHTML = '<p>No files found. Make sure the FUSE filesystem is mounted.</p>';
+                return;
+            }
+            
+            let html = '<ul class="file-tree">';
+            files.forEach(playlist => {
+                html += `<li class="playlist-folder">📁 ${playlist.playlist} (${playlist.count} videos)</li>`;
+                playlist.files.forEach(file => {
+                    const date = new Date(file.mtime).toLocaleDateString();
+                    const size = (file.size / (1024 * 1024)).toFixed(1);
+                    html += `<li class="video-file">🎬 ${file.name} (${size} MB, ${date})</li>`;
+                });
+            });
+            html += '</ul>';
+            
+            fileListDiv.innerHTML = html;
+        }
+        
+        async function loadConfig() {
+            try {
+                currentConfig = await fetchAPI('/config');
+                
+                document.getElementById('refresh-interval').value = currentConfig.refresh_interval || 1800;
+                document.getElementById('rate-delay').value = currentConfig.quota_management?.rate_limit_delay || 1.0;
+                document.getElementById('quota-input').value = currentConfig.quota_management?.daily_quota_limit || 10000;
+                
+                updatePlaylistStatus(currentConfig.playlists || {});
+            } catch (error) {
+                showAlert('Failed to load configuration', 'danger');
+            }
+        }
+        
+        async function saveConfig() {
+            try {
+                await fetchAPI('/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentConfig)
+                });
+                showAlert('Configuration saved successfully!');
+            } catch (error) {
+                showAlert('Failed to save configuration', 'danger');
+            }
+        }
+        
+        function updateConfig() {
+            currentConfig.refresh_interval = parseInt(document.getElementById('refresh-interval').value);
+            currentConfig.quota_management = currentConfig.quota_management || {};
+            currentConfig.quota_management.rate_limit_delay = parseFloat(document.getElementById('rate-delay').value);
+            currentConfig.quota_management.daily_quota_limit = parseInt(document.getElementById('quota-input').value);
+            
+            currentConfig.playlists = currentConfig.playlists || {};
+            currentConfig.playlists.max_playlists = parseInt(document.getElementById('max-playlists').value);
+            currentConfig.playlists.max_videos_per_playlist = parseInt(document.getElementById('max-videos').value);
+        }
+        
+        async function toggleEmergency() {
+            try {
+                const isEmergency = currentConfig.quota_management?.emergency_mode || false;
+                await fetchAPI('/emergency', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enable: !isEmergency })
+                });
+                showAlert(`Emergency mode ${!isEmergency ? 'enabled' : 'disabled'}!`, !isEmergency ? 'warning' : 'success');
+                setTimeout(refreshStatus, 1000);
+            } catch (error) {
+                showAlert('Failed to toggle emergency mode', 'danger');
+            }
+        }
+        
+        function toggleAutoDiscover() {
+            currentConfig.playlists = currentConfig.playlists || {};
+            currentConfig.playlists.auto_discover = !currentConfig.playlists.auto_discover;
+            updatePlaylistStatus(currentConfig.playlists);
+        }
+        
+        function toggleWatchLater() {
+            currentConfig.playlists = currentConfig.playlists || {};
+            currentConfig.playlists.watch_later = !currentConfig.playlists.watch_later;
+            updatePlaylistStatus(currentConfig.playlists);
+        }
+        
+        async function controlMount(action) {
+            try {
+                await fetchAPI(`/mount/${action}`);
+                showAlert(`Mount ${action} initiated`);
+                setTimeout(refreshStatus, 2000);
+            } catch (error) {
+                showAlert(`Failed to ${action} filesystem`, 'danger');
+            }
+        }
+        
+        async function controlService(action) {
+            try {
+                await fetchAPI(`/service/${action}`);
+                showAlert(`Service ${action} initiated`);
+                setTimeout(refreshStatus, 2000);
+            } catch (error) {
+                showAlert(`Failed to ${action} service`, 'danger');
+            }
+        }
+        
+        async function applyPreset(preset) {
+            if (preset === 'minimal') {
+                currentConfig.quota_management = currentConfig.quota_management || {};
+                currentConfig.quota_management.daily_quota_limit = 3000;
+                currentConfig.quota_management.rate_limit_delay = 3.0;
+                currentConfig.playlists = currentConfig.playlists || {};
+                currentConfig.playlists.max_playlists = 2;
+                currentConfig.playlists.max_videos_per_playlist = 10;
+                currentConfig.refresh_interval = 3600;
+            } else if (preset === 'conservative') {
+                currentConfig.quota_management = currentConfig.quota_management || {};
+                currentConfig.quota_management.daily_quota_limit = 8000;
+                currentConfig.quota_management.rate_limit_delay = 1.5;
+                currentConfig.playlists = currentConfig.playlists || {};
+                currentConfig.playlists.max_playlists = 5;
+                currentConfig.playlists.max_videos_per_playlist = 25;
+                currentConfig.refresh_interval = 1800;
+            }
+            
+            await saveConfig();
+            await loadConfig();
+            showAlert(`Applied ${preset} settings!`);
+        }
+        
+        async function discoverPlaylists() {
+            try {
+                showAlert('Discovering playlists...', 'warning');
+                const data = await fetchAPI('/playlists/discover');
+                
+                if (data.error) {
+                    showAlert(`Discovery failed: ${data.error}`, 'danger');
+                    return;
+                }
+                
+                displayDiscoveredPlaylists(data.playlists);
+                showAlert(`Found ${data.playlists.length} playlists!`);
+            } catch (error) {
+                showAlert('Failed to discover playlists', 'danger');
+            }
+        }
+        
+        function displayDiscoveredPlaylists(playlists) {
+            const discoveredDiv = document.getElementById('discovered-playlists');
+            
+            if (playlists.length === 0) {
+                discoveredDiv.innerHTML = '<p>No playlists found. Make sure you have OAuth configured.</p>';
+                discoveredDiv.style.display = 'block';
+                return;
+            }
+            
+            let html = '<h3>Available Playlists</h3><div class="playlist-list">';
+            playlists.forEach(playlist => {
+                const isEnabled = playlist.enabled;
+                html += `
+                    <div class="playlist-item ${isEnabled ? 'playlist-enabled' : ''}">
+                        <div class="playlist-info">
+                            <div class="playlist-title">${playlist.title}</div>
+                            <div class="playlist-meta">${playlist.itemCount} videos • ${playlist.id}</div>
+                            ${playlist.description ? `<div class="playlist-description">${playlist.description}</div>` : ''}
+                        </div>
+                        <div class="toggle-switch ${isEnabled ? 'active' : ''}" 
+                             onclick="togglePlaylist('${playlist.id}', this)"></div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            discoveredDiv.innerHTML = html;
+            discoveredDiv.style.display = 'block';
+        }
+        
+        async function togglePlaylist(playlistId, toggleElement) {
+            try {
+                const isEnabled = toggleElement.classList.contains('active');
+                
+                await fetchAPI('/playlists/enable', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        playlist_id: playlistId, 
+                        enabled: !isEnabled 
+                    })
+                });
+                
+                toggleElement.classList.toggle('active');
+                toggleElement.parentElement.classList.toggle('playlist-enabled');
+                
+                showAlert(`Playlist ${!isEnabled ? 'enabled' : 'disabled'}!`);
+            } catch (error) {
+                showAlert('Failed to toggle playlist', 'danger');
+            }
+        }
+    </script>
+</body>
+</html>

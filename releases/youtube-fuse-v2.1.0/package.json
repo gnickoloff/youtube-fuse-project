@@ -1,0 +1,69 @@
+{
+  "name": "youtube-fuse-filesystem",
+  "version": "2.1.0",
+  "description": "A FUSE-based filesystem that mounts YouTube playlists as virtual video files",
+  "main": "youtube_api_fuse.py",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/youtube-fuse-project.git"
+  },
+  "keywords": [
+    "youtube",
+    "fuse",
+    "filesystem",
+    "streaming",
+    "htpc",
+    "media-center",
+    "python",
+    "oauth",
+    "systemd"
+  ],
+  "author": "Your Name",
+  "license": "Educational/Personal Use",
+  "engines": {
+    "python": ">=3.7"
+  },
+  "os": [
+    "linux",
+    "darwin"
+  ],
+  "dependencies": {
+    "fusepy": ">=3.0.1",
+    "yt-dlp": ">=2023.12.30",
+    "requests": ">=2.31.0",
+    "google-api-python-client": ">=2.108.0",
+    "google-auth-oauthlib": ">=1.1.0",
+    "google-auth-httplib2": ">=0.1.1"
+  },
+  "systemRequirements": [
+    "FUSE libraries (libfuse-dev)",
+    "Python 3.7+",
+    "systemd (for service integration)",
+    "sudo access (for installation)"
+  ],
+  "features": [
+    "Mount YouTube playlists as directories",
+    "Stream videos without downloading",
+    "OAuth authentication for private playlists",
+    "Auto-discovery of all user playlists", 
+    "Systemd service integration",
+    "HTPC/Media center optimization",
+    "Professional installer/uninstaller",
+    "Secure credential management",
+    "Cross-platform FUSE support"
+  ],
+  "installation": {
+    "quick": "./install.sh",
+    "manual": [
+      "./setup.sh",
+      "source venv/bin/activate",
+      "python youtube_api_fuse.py ./mount-point"
+    ]
+  },
+  "release": {
+    "date": "2025-06-25",
+    "tag": "v1.0.0",
+    "status": "stable",
+    "production-ready": true
+  }
+}
