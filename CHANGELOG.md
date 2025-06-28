@@ -1,6 +1,6 @@
 # YouTube FUSE Filesystem - Release Notes
 
-## Version 2.0.1 - 2025-01-15
+## Version 2.1.0 - 2025-01-15
 
 ⚡ **Quota Efficiency Update - Revolutionary Change Detection**
 

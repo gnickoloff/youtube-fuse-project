@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# YouTube FUSE Filesystem v2.0.1 Release Package Creator
+# YouTube FUSE Filesystem v2.1.0 Release Package Creator
 
-echo "🎉 Creating YouTube FUSE Filesystem v2.0.1 Release Package..."
+echo "🎉 Creating YouTube FUSE Filesystem v2.1.0 Release Package..."
 
-VERSION="2.0.1"
+VERSION="2.1.0"
 RELEASE_NAME="youtube-fuse-v${VERSION}"
 RELEASE_DATE=$(date +%Y-%m-%d)
 
