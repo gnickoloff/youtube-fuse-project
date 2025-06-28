@@ -29,6 +29,12 @@ class YouTubeAPIFUSE(Operations):
         self.last_refresh = 0
         self.refresh_interval = self.config.get('refresh_interval', 1800)
         
+        # Change detection for quota optimization
+        self.playlist_etags = {}  # Store ETags for change detection
+        self.playlist_modified_times = {}  # Track when playlists were last modified
+        self.last_channel_check = 0  # Last time we checked for new/deleted playlists
+        self.channel_etag = None  # ETag for user's channel playlists
+        
         # Quota management initialization
         self.quota_usage = 0
         self.api_call_count = 0
@@ -66,7 +72,9 @@ class YouTubeAPIFUSE(Operations):
                 "rate_limit_delay": 1.0,  # Seconds between API calls
                 "quota_reset_hour": 0,  # Hour when quota resets (0-23, PST)
                 "emergency_mode": False,  # Disable all API calls if quota exceeded
-                "cache_duration": 3600  # How long to cache data (seconds)
+                "cache_duration": 3600,  # How long to cache data (seconds)
+                "use_incremental_refresh": True,  # Use change detection to save quota
+                "playlist_check_interval": 3600  # Check for playlist changes every hour
             },
             "refresh_interval": 1800,  # 30 minutes (increased from 5)
             "video_quality": "best[ext=mp4]/best"
@@ -398,8 +406,15 @@ class YouTubeAPIFUSE(Operations):
         print(f"📺 Fetched {len(videos)} videos from playlist {playlist_id} (max: {max_videos})")
         return videos
 
-    def refresh_videos(self):
+    def refresh_videos(self, force_full_refresh=False):
         """Fetch all configured playlists and build video cache with quota management"""
+        # Use incremental refresh by default to save quota
+        use_incremental = self.config.get('quota_management', {}).get('use_incremental_refresh', True)
+        
+        if use_incremental and not force_full_refresh:
+            return self.refresh_videos_incremental()
+        
+        # Full refresh (original method)
         current_time = time.time()
         quota_config = self.config.get('quota_management', {})
         cache_duration = quota_config.get('cache_duration', 3600)
@@ -415,7 +430,7 @@ class YouTubeAPIFUSE(Operations):
             print("🚨 Emergency mode enabled - skipping video refresh")
             return
 
-        print("🔄 Refreshing videos from YouTube API...")
+        print("🔄 Full refresh of videos from YouTube API...")
         print(f"📊 Current quota usage: {self.quota_usage}/{quota_config.get('daily_quota_limit', 10000)}")
         
         new_playlists = {}
@@ -730,20 +745,269 @@ class YouTubeAPIFUSE(Operations):
             print(f"Error reading {path}: {e}")
             raise FuseOSError(errno.EIO)
 
+    def check_playlist_changes(self):
+        """Check for playlist changes using ETags - very quota efficient"""
+        if not self.config['use_oauth']:
+            print("Change detection requires OAuth authentication")
+            return []
+
+        current_time = time.time()
+        
+        # Only check for new/deleted playlists every hour to save quota
+        playlist_check_interval = self.config.get('quota_management', {}).get('playlist_check_interval', 3600)
+        need_full_check = (current_time - self.last_channel_check) > playlist_check_interval
+        
+        changed_playlists = []
+        
+        if need_full_check:
+            print("🔍 Checking for new/deleted playlists...")
+            # Get current playlist list with ETags
+            def api_call():
+                request = self.youtube_service.playlists().list(
+                    part='snippet',
+                    mine=True,
+                    maxResults=50
+                )
+                if self.channel_etag:
+                    request.headers = {'If-None-Match': self.channel_etag}
+                return request.execute()
+
+            try:
+                response = self.make_api_call("check_playlist_list", api_call, quota_cost=1)
+                
+                if response:
+                    # Store new ETag for future checks
+                    self.channel_etag = response.get('etag')
+                    
+                    # Check for new or modified playlists
+                    current_playlist_ids = {item['id'] for item in response.get('items', [])}
+                    cached_playlist_ids = set(self.playlist_etags.keys())
+                    
+                    # Find new playlists
+                    new_playlists = current_playlist_ids - cached_playlist_ids
+                    if new_playlists:
+                        print(f"📋 Found {len(new_playlists)} new playlists")
+                        changed_playlists.extend(new_playlists)
+                    
+                    # Find deleted playlists
+                    deleted_playlists = cached_playlist_ids - current_playlist_ids
+                    if deleted_playlists:
+                        print(f"🗑️ Found {len(deleted_playlists)} deleted playlists")
+                        for playlist_id in deleted_playlists:
+                            # Remove from caches
+                            self.playlist_etags.pop(playlist_id, None)
+                            self.playlist_modified_times.pop(playlist_id, None)
+                            self.playlists.pop(playlist_id, None)
+                    
+                    # Check existing playlists for modifications
+                    for item in response.get('items', []):
+                        playlist_id = item['id']
+                        current_etag = item.get('etag')
+                        
+                        if playlist_id in self.playlist_etags:
+                            if self.playlist_etags[playlist_id] != current_etag:
+                                print(f"📝 Playlist {playlist_id} has been modified")
+                                changed_playlists.append(playlist_id)
+                        
+                        # Update stored ETag
+                        self.playlist_etags[playlist_id] = current_etag
+                
+                self.last_channel_check = current_time
+                
+            except Exception as e:
+                if "304" in str(e):  # Not Modified
+                    print("✅ No playlist changes detected (304 Not Modified)")
+                else:
+                    print(f"Error checking playlist changes: {e}")
+        
+        # Check individual playlists for video changes (more frequent)
+        print("🔍 Checking individual playlists for video changes...")
+        playlist_config = self.config.get('playlists', {})
+        enabled_playlists = playlist_config.get('enabled_playlists', [])
+        
+        # Check custom playlists
+        for playlist_id in playlist_config.get('custom_playlists', []):
+            if enabled_playlists and playlist_id not in enabled_playlists:
+                continue
+                
+            if self.check_individual_playlist_changes(playlist_id):
+                if playlist_id not in changed_playlists:
+                    changed_playlists.append(playlist_id)
+        
+        # Check auto-discovered playlists if enabled
+        if playlist_config.get('auto_discover', False):
+            for playlist_id in list(self.playlists.keys()):
+                if playlist_id != 'watch_later':  # Skip Watch Later, handled separately
+                    if self.check_individual_playlist_changes(playlist_id):
+                        if playlist_id not in changed_playlists:
+                            changed_playlists.append(playlist_id)
+        
+        print(f"📊 Change detection found {len(changed_playlists)} changed playlists")
+        return changed_playlists
+    
+    def check_individual_playlist_changes(self, playlist_id):
+        """Check if a specific playlist has changed using conditional requests"""
+        try:
+            def api_call():
+                request = self.youtube_service.playlistItems().list(
+                    part='snippet',
+                    playlistId=playlist_id,
+                    maxResults=1  # Just check the first item for changes
+                )
+                
+                # Use If-None-Match header if we have a stored ETag
+                stored_etag = self.playlist_etags.get(f"{playlist_id}_items")
+                if stored_etag:
+                    request.headers = {'If-None-Match': stored_etag}
+                
+                return request.execute()
+
+            response = self.make_api_call(f"check_playlist_changes({playlist_id})", api_call, quota_cost=1)
+            
+            if response:
+                # Store new ETag
+                new_etag = response.get('etag')
+                if new_etag:
+                    old_etag = self.playlist_etags.get(f"{playlist_id}_items")
+                    self.playlist_etags[f"{playlist_id}_items"] = new_etag
+                    
+                    if old_etag and old_etag != new_etag:
+                        print(f"📹 Videos changed in playlist {playlist_id}")
+                        return True
+                    elif not old_etag:
+                        # First time checking this playlist
+                        return True
+            
+            return False
+            
+        except Exception as e:
+            if "304" in str(e):  # Not Modified
+                print(f"✅ No changes in playlist {playlist_id}")
+                return False
+            else:
+                print(f"Error checking playlist {playlist_id}: {e}")
+                return True  # Assume changed on error to be safe
+    
+    def refresh_videos_incremental(self):
+        """Incrementally refresh only changed playlists to save quota"""
+        current_time = time.time()
+        quota_config = self.config.get('quota_management', {})
+        cache_duration = quota_config.get('cache_duration', 3600)
+        
+        # Use cache duration from quota config if available
+        effective_refresh_interval = min(self.refresh_interval, cache_duration)
+        
+        if current_time - self.last_refresh < effective_refresh_interval:
+            return  # Too soon to refresh
+
+        # Check if we're in emergency mode
+        if quota_config.get('emergency_mode', False):
+            print("🚨 Emergency mode enabled - skipping video refresh")
+            return
+
+        print("🔄 Starting incremental refresh (quota-optimized)...")
+        print(f"📊 Current quota usage: {self.quota_usage}/{quota_config.get('daily_quota_limit', 10000)}")
+        
+        # Check what has changed
+        changed_playlists = self.check_playlist_changes()
+        
+        if not changed_playlists:
+            print("✅ No changes detected - skipping full refresh")
+            self.last_refresh = current_time
+            return
+        
+        print(f"🔄 Refreshing {len(changed_playlists)} changed playlists...")
+        
+        # Only refresh changed playlists
+        for playlist_id in changed_playlists:
+            if playlist_id == 'watch_later':
+                # Handle Watch Later specially
+                print("📺 Refreshing Watch Later playlist...")
+                watch_later_videos = self.get_watch_later_playlist()
+                
+                if playlist_id not in self.playlists:
+                    self.playlists[playlist_id] = {
+                        'title': 'Watch Later',
+                        'sanitized_name': 'Watch_Later',
+                        'videos': {}
+                    }
+                
+                # Clear old videos and add new ones
+                self.playlists[playlist_id]['videos'] = {}
+                for video in watch_later_videos:
+                    filename = f"{self.sanitize_filename(video['title'])}.mp4"
+                    self.playlists[playlist_id]['videos'][filename] = self.create_video_entry(video)
+            
+            else:
+                # Handle regular playlists
+                print(f"📋 Refreshing playlist {playlist_id}...")
+                
+                # Get playlist metadata if needed
+                if playlist_id not in self.playlists:
+                    def get_metadata():
+                        return self.youtube_service.playlists().list(
+                            part='snippet',
+                            id=playlist_id
+                        ).execute()
+                    
+                    try:
+                        playlist_response = self.make_api_call(f"get_playlist_metadata({playlist_id})", get_metadata, quota_cost=1)
+                        
+                        if playlist_response and playlist_response['items']:
+                            playlist_title = playlist_response['items'][0]['snippet']['title']
+                        else:
+                            playlist_title = f"Playlist_{playlist_id}"
+                    except Exception as e:
+                        print(f"Error getting playlist metadata for {playlist_id}: {e}")
+                        playlist_title = f"Playlist_{playlist_id}"
+                    
+                    sanitized_name = self.sanitize_filename(playlist_title)
+                    self.playlists[playlist_id] = {
+                        'title': playlist_title,
+                        'sanitized_name': sanitized_name,
+                        'videos': {}
+                    }
+                
+                # Refresh videos for this playlist
+                playlist_videos = self.get_playlist_videos(playlist_id)
+                
+                # Clear old videos and add new ones
+                self.playlists[playlist_id]['videos'] = {}
+                for video in playlist_videos:
+                    filename = f"{self.sanitize_filename(video['title'])}.mp4"
+                    self.playlists[playlist_id]['videos'][filename] = self.create_video_entry(video)
+        
+        self.last_refresh = current_time
+        total_videos = sum(len(playlist['videos']) for playlist in self.playlists.values())
+        print(f"✅ Incremental refresh complete: {len(self.playlists)} playlists with {total_videos} total videos")
+        print(f"📊 Final quota usage: {self.quota_usage}/{quota_config.get('daily_quota_limit', 10000)}")
+        print(f"💰 Saved quota by only refreshing {len(changed_playlists)} changed playlists!")
+
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python youtube_api_fuse.py <mount_point>")
+    if len(sys.argv) not in [2, 3]:
+        print("Usage: python youtube_api_fuse.py <mount_point> [--full-refresh]")
         print("\nMake sure you have configured youtube_config.json first!")
+        print("\nOptions:")
+        print("  --full-refresh    Force a full refresh instead of incremental")
         sys.exit(1)
     
     mount_point = sys.argv[1]
+    force_full_refresh = "--full-refresh" in sys.argv
     
     print(f"Mounting YouTube API filesystem at {mount_point}")
+    if force_full_refresh:
+        print("🔄 Using full refresh mode (will use more quota)")
+    else:
+        print("⚡ Using incremental refresh mode (quota optimized)")
     
     os.makedirs(mount_point, exist_ok=True)
     
     try:
-        fuse = FUSE(YouTubeAPIFUSE(), mount_point, nothreads=True, foreground=True, allow_other=True)
+        fuse_system = YouTubeAPIFUSE()
+        if force_full_refresh:
+            fuse_system.refresh_videos(force_full_refresh=True)
+        
+        fuse = FUSE(fuse_system, mount_point, nothreads=True, foreground=True, allow_other=True)
     except KeyboardInterrupt:
         print("\nUnmounting...")
 

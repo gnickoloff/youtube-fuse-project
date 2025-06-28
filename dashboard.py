@@ -129,6 +129,30 @@ class YouTubeFUSEDashboard:
             'refresh_interval': refresh_interval
         }
     
+    def get_quota_efficiency_status(self):
+        """Get quota efficiency and savings information"""
+        try:
+            from quota_analytics import QuotaAnalytics
+            analytics = QuotaAnalytics()
+            efficiency_report = analytics.get_quota_efficiency_report()
+            
+            return {
+                'enabled': True,
+                'total_saved': efficiency_report['summary']['total_quota_saved'],
+                'efficiency_rate': efficiency_report['summary']['efficiency_rate'],
+                'incremental_refreshes': efficiency_report['summary']['incremental_refreshes'],
+                'full_refreshes': efficiency_report['summary']['full_refreshes'],
+                'recent_avg_quota': efficiency_report['recent_activity']['avg_quota_per_refresh'],
+                'recent_efficiency': efficiency_report['recent_activity']['avg_efficiency_ratio']
+            }
+        except Exception as e:
+            return {
+                'enabled': False,
+                'error': str(e),
+                'total_saved': 0,
+                'efficiency_rate': 0
+            }
+    
     def get_playlist_info(self):
         """Get playlist configuration and discovered playlists"""
         config = self.load_config()
@@ -201,6 +225,7 @@ def api_status():
     return jsonify({
         'system': dashboard.get_system_status(),
         'quota': dashboard.get_quota_status(),
+        'quota_efficiency': dashboard.get_quota_efficiency_status(),
         'playlists': dashboard.get_playlist_info(),
         'timestamp': datetime.now().isoformat()
     })
@@ -324,6 +349,45 @@ def api_enable_playlist():
             return jsonify({'success': False, 'message': 'Failed to save configuration'}), 500
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 400
+
+@app.route('/api/quota/efficiency')
+def api_quota_efficiency():
+    """Get quota efficiency and savings statistics"""
+    try:
+        dashboard = YouTubeFUSEDashboard()
+        efficiency = dashboard.get_quota_efficiency_status()
+        return jsonify(efficiency)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/refresh/mode', methods=['GET', 'POST'])
+def api_refresh_mode():
+    """Get or set refresh mode (incremental vs full)"""
+    try:
+        dashboard = YouTubeFUSEDashboard()
+        config = dashboard.load_config()
+        
+        if request.method == 'POST':
+            data = request.get_json()
+            use_incremental = data.get('incremental', True)
+            
+            # Update config
+            if 'quota_management' not in config:
+                config['quota_management'] = {}
+            config['quota_management']['use_incremental_refresh'] = use_incremental
+            
+            # Save config
+            with open(dashboard.config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            return jsonify({'success': True, 'incremental': use_incremental})
+        else:
+            # GET request
+            use_incremental = config.get('quota_management', {}).get('use_incremental_refresh', True)
+            return jsonify({'incremental': use_incremental})
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     print("Starting YouTube FUSE Dashboard...")
