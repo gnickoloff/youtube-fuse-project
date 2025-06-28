@@ -2,18 +2,22 @@
 
 A FUSE-based filesystem that mounts YouTube playlists as virtual video files on your local system. Stream videos directly from YouTube through your filesystem!
 
+> **⚠️ QUOTA MANAGEMENT**: YouTube API has daily quota limits. If you're experiencing crashes due to quota exhaustion, see **[QUOTA_MANAGEMENT.md](QUOTA_MANAGEMENT.md)** for immediate solutions and traffic control.
+
 ## Features
 
 - 🎥 Mount YouTube playlists as local directories
-- � **Auto-discover all user playlists** with subdirectory organization
-- �📺 Stream videos directly without downloading
+- 📁 **Auto-discover all user playlists** with subdirectory organization
+- 📺 Stream videos directly without downloading
 - 🔐 Support for both public playlists (API key) and private playlists (OAuth)
 - ⚡ Smart caching for better performance
 - 🎬 Watch Later playlist support
 - 📱 HTTP range requests for video seeking
 - 🔄 Auto-refresh playlist contents
 - 📅 Authentic file timestamps (YouTube publish dates)
-- �️ **Organized directory structure** - each playlist becomes a subdirectory
+- 🗂️ **Organized directory structure** - each playlist becomes a subdirectory
+- 📊 **Advanced quota management** with rate limiting and emergency mode
+- 🎛️ **Configurable playlist selection** and traffic controls
 
 ## Requirements
 
@@ -96,6 +100,94 @@ Edit `youtube_config.json`:
   }
 }
 ```
+
+## 📊 Quota Management
+
+YouTube API has daily quota limits. This project includes comprehensive quota management to prevent hitting limits:
+
+### Quota Configuration
+
+```json
+{
+  "quota_management": {
+    "enabled": true,
+    "daily_quota_limit": 8000,
+    "rate_limit_delay": 1.5,
+    "quota_reset_hour": 0,
+    "emergency_mode": false,
+    "cache_duration": 3600
+  },
+  "playlists": {
+    "max_playlists": 5,
+    "max_videos_per_playlist": 25,
+    "enabled_playlists": ["specific_playlist_id"]
+  }
+}
+```
+
+### Quota Management Features
+
+- **Daily Quota Tracking**: Monitors API usage against your daily limit
+- **Rate Limiting**: Adds delays between API calls to prevent bursts
+- **Emergency Mode**: Completely disables API calls when quota is exhausted
+- **Smart Caching**: Extends cache duration when quota is running low
+- **Playlist Limiting**: Control exactly which playlists to fetch
+- **Video Limiting**: Limit videos per playlist to reduce quota usage
+
+### Using the Quota Manager
+
+```bash
+# Check current quota status and estimated usage
+python quota_manager.py --status
+
+# Get optimization suggestions
+python quota_manager.py --optimize
+
+# Enable emergency mode (stops all API calls)
+python quota_manager.py --emergency-on
+
+# Disable emergency mode
+python quota_manager.py --emergency-off
+```
+
+### Quota Optimization Tips
+
+1. **Limit Playlists**: Use `enabled_playlists` to fetch only needed playlists
+2. **Reduce Video Count**: Set `max_videos_per_playlist` to 10-25
+3. **Increase Cache Time**: Set longer `refresh_interval` (1800-3600 seconds)
+4. **Rate Limiting**: Use 1.5-2.0 second delays between API calls
+5. **Monitor Usage**: Check logs for quota consumption patterns
+
+### Emergency Mode
+
+When quota is exhausted, enable emergency mode:
+```bash
+python quota_manager.py --emergency-on
+```
+This will:
+- Disable all YouTube API calls
+- Serve cached content only
+- Prevent further quota consumption
+
+## 🚨 Quick Quota Management
+
+If you're hitting YouTube API quota limits:
+
+```bash
+# EMERGENCY: Stop all API calls immediately
+./quota_control.sh emergency-on
+
+# Apply conservative settings
+./quota_control.sh conservative
+
+# Check quota status
+./quota_control.sh status
+
+# Re-enable when ready
+./quota_control.sh emergency-off
+```
+
+**📖 Full quota management guide: [QUOTA_MANAGEMENT.md](QUOTA_MANAGEMENT.md)**
 
 ## Configuration Options
 

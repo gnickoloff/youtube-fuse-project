@@ -7,7 +7,7 @@ import stat
 import threading
 import time
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from fuse import FUSE, FuseOSError, Operations
 import yt_dlp
 import requests
@@ -15,6 +15,7 @@ from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+import pytz
 
 class YouTubeAPIFUSE(Operations):
     def __init__(self, config_file='youtube_config.json'):
@@ -26,7 +27,21 @@ class YouTubeAPIFUSE(Operations):
         self.stream_cache = {}  # Cache stream URLs temporarily
         self.cache_lock = threading.Lock()
         self.last_refresh = 0
-        self.refresh_interval = 300  # 5 minutes
+        self.refresh_interval = self.config.get('refresh_interval', 1800)
+        
+        # Quota management initialization
+        self.quota_usage = 0
+        self.api_call_count = 0
+        self.last_api_call = 0
+        self.quota_reset_time = time.time() + 86400  # Default to 24 hours from now
+        
+        # Now set the proper quota reset time
+        try:
+            self.quota_reset_time = self.get_next_quota_reset()
+        except Exception as e:
+            print(f"Warning: Could not set quota reset time: {e}")
+            # Fall back to midnight today
+            self.quota_reset_time = time.time() + (86400 - (time.time() % 86400))
         
         self.authenticate()
         self.refresh_videos()
@@ -40,9 +55,20 @@ class YouTubeAPIFUSE(Operations):
             "playlists": {
                 "auto_discover": False,  # Auto-discover all user playlists
                 "watch_later": True,  # Special case
-                "custom_playlists": []  # List of playlist IDs
+                "custom_playlists": [],  # List of playlist IDs
+                "enabled_playlists": [],  # Specific playlist IDs to enable (empty = all)
+                "max_playlists": 10,  # Maximum number of playlists to fetch
+                "max_videos_per_playlist": 50  # Maximum videos per playlist
             },
-            "refresh_interval": 300,
+            "quota_management": {
+                "enabled": True,  # Enable quota management features
+                "daily_quota_limit": 10000,  # Conservative daily quota limit
+                "rate_limit_delay": 1.0,  # Seconds between API calls
+                "quota_reset_hour": 0,  # Hour when quota resets (0-23, PST)
+                "emergency_mode": False,  # Disable all API calls if quota exceeded
+                "cache_duration": 3600  # How long to cache data (seconds)
+            },
+            "refresh_interval": 1800,  # 30 minutes (increased from 5)
             "video_quality": "best[ext=mp4]/best"
         }
         
@@ -143,40 +169,151 @@ class YouTubeAPIFUSE(Operations):
         self.youtube_service = build('youtube', 'v3', developerKey=self.config['api_key'])
         print("✅ API key authentication successful")
     
+    def get_next_quota_reset(self):
+        """Calculate when the YouTube API quota resets (daily at configured hour)"""
+        # YouTube API quota resets at midnight PST
+        pst = pytz.timezone('US/Pacific')
+        now = datetime.now(pst)
+        reset_hour = self.config.get('quota_management', {}).get('quota_reset_hour', 0)
+        
+        # Calculate next reset time
+        next_reset = now.replace(hour=reset_hour, minute=0, second=0, microsecond=0)
+        if now.hour >= reset_hour:
+            next_reset += timedelta(days=1)
+        
+        return next_reset.timestamp()
+    
+    def check_quota_limit(self, required_quota=1):
+        """Check if we can make an API call without exceeding quota"""
+        quota_config = self.config.get('quota_management', {})
+        
+        if not quota_config.get('enabled', True):
+            return True
+        
+        # Reset quota usage if we've passed the reset time
+        current_time = time.time()
+        if current_time >= self.quota_reset_time:
+            self.quota_usage = 0
+            self.api_call_count = 0
+            self.quota_reset_time = self.get_next_quota_reset()
+            print(f"🔄 Quota reset! New reset time: {datetime.fromtimestamp(self.quota_reset_time)}")
+        
+        # Check if we're in emergency mode
+        if quota_config.get('emergency_mode', False):
+            print("🚨 Emergency mode enabled - API calls disabled")
+            return False
+        
+        # Check daily quota limit
+        daily_limit = quota_config.get('daily_quota_limit', 10000)
+        if self.quota_usage + required_quota > daily_limit:
+            print(f"⚠️ Quota limit reached: {self.quota_usage}/{daily_limit}")
+            return False
+        
+        return True
+    
+    def rate_limit_api_call(self):
+        """Implement rate limiting between API calls"""
+        quota_config = self.config.get('quota_management', {})
+        rate_limit = quota_config.get('rate_limit_delay', 1.0)
+        
+        if rate_limit > 0:
+            current_time = time.time()
+            time_since_last_call = current_time - self.last_api_call
+            
+            if time_since_last_call < rate_limit:
+                sleep_time = rate_limit - time_since_last_call
+                print(f"⏱️ Rate limiting: sleeping {sleep_time:.2f}s")
+                time.sleep(sleep_time)
+        
+        self.last_api_call = time.time()
+    
+    def track_quota_usage(self, operation_type, quota_cost=1):
+        """Track quota usage for monitoring"""
+        self.quota_usage += quota_cost
+        self.api_call_count += 1
+        
+        quota_config = self.config.get('quota_management', {})
+        daily_limit = quota_config.get('daily_quota_limit', 10000)
+        
+        print(f"📊 API Call: {operation_type} (Cost: {quota_cost}) - "
+              f"Usage: {self.quota_usage}/{daily_limit} ({self.api_call_count} calls)")
+        
+        # Warn if getting close to limit
+        if self.quota_usage > daily_limit * 0.8:
+            print(f"⚠️ Warning: Using {(self.quota_usage/daily_limit)*100:.1f}% of daily quota")
+    
+    def make_api_call(self, operation_type, api_call_func, quota_cost=1):
+        """Wrapper for YouTube API calls with quota management"""
+        if not self.check_quota_limit(quota_cost):
+            print(f"❌ Skipping {operation_type} - quota limit reached")
+            return None
+        
+        try:
+            self.rate_limit_api_call()
+            result = api_call_func()
+            self.track_quota_usage(operation_type, quota_cost)
+            return result
+        except Exception as e:
+            print(f"❌ API call failed for {operation_type}: {e}")
+            # Still count the quota usage even on failure
+            self.track_quota_usage(f"{operation_type} (failed)", quota_cost)
+            return None
+    
     def get_user_playlists(self):
-        """Auto-discover all user playlists"""
+        """Auto-discover all user playlists with quota management"""
         if not self.config['use_oauth']:
             print("Auto-discovery requires OAuth authentication")
             return []
+
+        playlist_config = self.config.get('playlists', {})
+        max_playlists = playlist_config.get('max_playlists', 10)
+        enabled_playlists = playlist_config.get('enabled_playlists', [])
         
         playlists = []
         next_page_token = None
-        
+        fetched_count = 0
+
         try:
             while True:
-                request = self.youtube_service.playlists().list(
-                    part='snippet',
-                    mine=True,
-                    maxResults=50,
-                    pageToken=next_page_token
-                )
-                response = request.execute()
-                
+                def api_call():
+                    return self.youtube_service.playlists().list(
+                        part='snippet',
+                        mine=True,
+                        maxResults=min(50, max_playlists - fetched_count),
+                        pageToken=next_page_token
+                    ).execute()
+
+                response = self.make_api_call("get_user_playlists", api_call, quota_cost=1)
+                if not response:
+                    break
+
                 for playlist in response['items']:
+                    playlist_id = playlist['id']
+                    
+                    # If enabled_playlists is specified, only include those
+                    if enabled_playlists and playlist_id not in enabled_playlists:
+                        continue
+                    
                     playlists.append({
-                        'id': playlist['id'],
+                        'id': playlist_id,
                         'title': playlist['snippet']['title'],
                         'description': playlist['snippet'].get('description', ''),
                         'itemCount': playlist['snippet'].get('itemCount', 0)
                     })
-                
+                    
+                    fetched_count += 1
+                    if fetched_count >= max_playlists:
+                        print(f"🛑 Reached max playlists limit: {max_playlists}")
+                        return playlists
+
                 next_page_token = response.get('nextPageToken')
                 if not next_page_token:
                     break
-                    
+
         except Exception as e:
             print(f"Error fetching user playlists: {e}")
-        
+
+        print(f"📋 Discovered {len(playlists)} playlists (max: {max_playlists})")
         return playlists
 
     def get_watch_later_playlist(self):
@@ -210,20 +347,28 @@ class YouTubeAPIFUSE(Operations):
             return []
     
     def get_playlist_videos(self, playlist_id):
-        """Get videos from a specific playlist"""
+        """Get videos from a specific playlist with quota management"""
+        playlist_config = self.config.get('playlists', {})
+        max_videos = playlist_config.get('max_videos_per_playlist', 50)
+        
         videos = []
         next_page_token = None
+        fetched_count = 0
         
         try:
             while True:
-                request = self.youtube_service.playlistItems().list(
-                    part='snippet',
-                    playlistId=playlist_id,
-                    maxResults=50,
-                    pageToken=next_page_token
-                )
-                response = request.execute()
-                
+                def api_call():
+                    return self.youtube_service.playlistItems().list(
+                        part='snippet',
+                        playlistId=playlist_id,
+                        maxResults=min(50, max_videos - fetched_count),
+                        pageToken=next_page_token
+                    ).execute()
+
+                response = self.make_api_call(f"get_playlist_videos({playlist_id})", api_call, quota_cost=1)
+                if not response:
+                    break
+
                 for item in response['items']:
                     if item['snippet']['resourceId']['kind'] == 'youtube#video':
                         video_id = item['snippet']['resourceId']['videoId']
@@ -237,7 +382,12 @@ class YouTubeAPIFUSE(Operations):
                                 'url': f'https://youtube.com/watch?v={video_id}',
                                 'publishedAt': item['snippet'].get('publishedAt')
                             })
-                
+                            
+                            fetched_count += 1
+                            if fetched_count >= max_videos:
+                                print(f"🛑 Reached max videos limit for playlist {playlist_id}: {max_videos}")
+                                return videos
+
                 next_page_token = response.get('nextPageToken')
                 if not next_page_token:
                     break
@@ -245,27 +395,43 @@ class YouTubeAPIFUSE(Operations):
         except Exception as e:
             print(f"Error fetching playlist {playlist_id}: {e}")
         
+        print(f"📺 Fetched {len(videos)} videos from playlist {playlist_id} (max: {max_videos})")
         return videos
 
     def refresh_videos(self):
-        """Fetch all configured playlists and build video cache"""
+        """Fetch all configured playlists and build video cache with quota management"""
         current_time = time.time()
-        if current_time - self.last_refresh < self.refresh_interval:
+        quota_config = self.config.get('quota_management', {})
+        cache_duration = quota_config.get('cache_duration', 3600)
+        
+        # Use cache duration from quota config if available
+        effective_refresh_interval = min(self.refresh_interval, cache_duration)
+        
+        if current_time - self.last_refresh < effective_refresh_interval:
             return  # Too soon to refresh
 
-        print("Refreshing videos from YouTube API...")
+        # Check if we're in emergency mode
+        if quota_config.get('emergency_mode', False):
+            print("🚨 Emergency mode enabled - skipping video refresh")
+            return
+
+        print("🔄 Refreshing videos from YouTube API...")
+        print(f"📊 Current quota usage: {self.quota_usage}/{quota_config.get('daily_quota_limit', 10000)}")
+        
         new_playlists = {}
+        playlist_config = self.config.get('playlists', {})
 
         # Auto-discover user playlists if enabled
-        if self.config['playlists'].get('auto_discover', False):
-            print("Auto-discovering user playlists...")
+        if playlist_config.get('auto_discover', False):
+            print("🔍 Auto-discovering user playlists...")
             user_playlists = self.get_user_playlists()
+            
             for playlist in user_playlists:
                 playlist_id = playlist['id']
                 playlist_title = playlist['title']
                 sanitized_name = self.sanitize_filename(playlist_title)
                 
-                print(f"Fetching auto-discovered playlist: {playlist_title}")
+                print(f"📋 Fetching auto-discovered playlist: {playlist_title}")
                 playlist_videos = self.get_playlist_videos(playlist_id)
                 
                 new_playlists[playlist_id] = {
@@ -279,8 +445,8 @@ class YouTubeAPIFUSE(Operations):
                     new_playlists[playlist_id]['videos'][filename] = self.create_video_entry(video)
 
         # Get Watch Later if configured
-        if self.config['playlists']['watch_later']:
-            print("Fetching Watch Later playlist...")
+        if playlist_config.get('watch_later', True):
+            print("📺 Fetching Watch Later playlist...")
             watch_later_videos = self.get_watch_later_playlist()
             playlist_id = 'watch_later'
             
@@ -295,17 +461,28 @@ class YouTubeAPIFUSE(Operations):
                 new_playlists[playlist_id]['videos'][filename] = self.create_video_entry(video)
 
         # Get custom playlists
-        for playlist_id in self.config['playlists']['custom_playlists']:
-            print(f"Fetching custom playlist {playlist_id}...")
+        custom_playlists = playlist_config.get('custom_playlists', [])
+        enabled_playlists = playlist_config.get('enabled_playlists', [])
+        
+        for playlist_id in custom_playlists:
+            # Skip if enabled_playlists is specified and this isn't in it
+            if enabled_playlists and playlist_id not in enabled_playlists:
+                print(f"⏭️ Skipping disabled playlist: {playlist_id}")
+                continue
+                
+            print(f"📋 Fetching custom playlist {playlist_id}...")
             
             # Get playlist metadata first
-            try:
-                playlist_response = self.youtube_service.playlists().list(
+            def get_metadata():
+                return self.youtube_service.playlists().list(
                     part='snippet',
                     id=playlist_id
                 ).execute()
+            
+            try:
+                playlist_response = self.make_api_call(f"get_playlist_metadata({playlist_id})", get_metadata, quota_cost=1)
                 
-                if playlist_response['items']:
+                if playlist_response and playlist_response['items']:
                     playlist_title = playlist_response['items'][0]['snippet']['title']
                 else:
                     playlist_title = f"Playlist_{playlist_id}"
@@ -332,7 +509,8 @@ class YouTubeAPIFUSE(Operations):
             self.last_refresh = current_time
 
         total_videos = sum(len(playlist['videos']) for playlist in new_playlists.values())
-        print(f"Loaded {len(new_playlists)} playlists with {total_videos} total videos")
+        print(f"✅ Loaded {len(new_playlists)} playlists with {total_videos} total videos")
+        print(f"📊 Final quota usage: {self.quota_usage}/{quota_config.get('daily_quota_limit', 10000)}")
     
     def create_video_entry(self, video_data):
         """Create a video cache entry with YouTube publish date as mtime"""

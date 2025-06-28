@@ -5,8 +5,19 @@
   "playlists": {
     "auto_discover": true,
     "watch_later": false,
-    "custom_playlists": []
+    "custom_playlists": [],
+    "enabled_playlists": [],
+    "max_playlists": 3,
+    "max_videos_per_playlist": 15
   },
-  "refresh_interval": 300,
+  "quota_management": {
+    "enabled": true,
+    "daily_quota_limit": 5000,
+    "rate_limit_delay": 2.0,
+    "quota_reset_hour": 0,
+    "emergency_mode": false,
+    "cache_duration": 7200
+  },
+  "refresh_interval": 3600,
   "video_quality": "best[ext=mp4]/best"
 }
