@@ -18,7 +18,15 @@
     "rate_limit_delay": 1.5,
     "quota_reset_hour": 0,
     "emergency_mode": false,
-    "cache_duration": 3600
+    "cache_duration": 3600,
+    "use_incremental_refresh": true,
+    "playlist_check_interval": 3600
+  },
+  "filesystem": {
+    "uid": 121,
+    "gid": 130,
+    "dir_mode": 2775,
+    "file_mode": 664
   },
   "refresh_interval": 1800,
   "video_quality": "best[ext=mp4]/best"

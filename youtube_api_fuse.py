@@ -76,6 +76,12 @@ class YouTubeAPIFUSE(Operations):
                 "use_incremental_refresh": True,  # Use change detection to save quota
                 "playlist_check_interval": 3600  # Check for playlist changes every hour
             },
+            "filesystem": {
+                "uid": 121,  # mythtv user ID
+                "gid": 130,  # mythtv group ID
+                "dir_mode": 0o2775,  # rwxrwsr-x with setgid bit
+                "file_mode": 0o664   # rw-rw-r--
+            },
             "refresh_interval": 1800,  # 30 minutes (increased from 5)
             "video_quality": "best[ext=mp4]/best"
         }
@@ -610,13 +616,15 @@ class YouTubeAPIFUSE(Operations):
         self.refresh_videos()
 
         if path == '/':
-            # Root directory
-            st = dict(st_mode=(stat.S_IFDIR | 0o755), st_nlink=2)
+            # Root directory with setgid bit (rwxrwsr-x = 2775)
+            filesystem_config = self.config.get('filesystem', {})
+            dir_mode = filesystem_config.get('dir_mode', 0o2775)
+            st = dict(st_mode=(stat.S_IFDIR | dir_mode), st_nlink=2)
         else:
             path_parts = path.strip('/').split('/')
             
             if len(path_parts) == 1:
-                # This is a playlist directory
+                # This is a playlist directory with setgid bit (rwxrwsr-x = 2775)
                 playlist_dir = path_parts[0]
                 
                 # Check if this matches any playlist's sanitized name
@@ -627,7 +635,9 @@ class YouTubeAPIFUSE(Operations):
                         break
                 
                 if playlist_found:
-                    st = dict(st_mode=(stat.S_IFDIR | 0o755), st_nlink=2)
+                    filesystem_config = self.config.get('filesystem', {})
+                    dir_mode = filesystem_config.get('dir_mode', 0o2775)
+                    st = dict(st_mode=(stat.S_IFDIR | dir_mode), st_nlink=2)
                 else:
                     raise FuseOSError(errno.ENOENT)
                     
@@ -645,8 +655,10 @@ class YouTubeAPIFUSE(Operations):
                 
                 if target_playlist and filename in target_playlist['videos']:
                     video = target_playlist['videos'][filename]
+                    filesystem_config = self.config.get('filesystem', {})
+                    file_mode = filesystem_config.get('file_mode', 0o664)
                     st = dict(
-                        st_mode=(stat.S_IFREG | 0o644),
+                        st_mode=(stat.S_IFREG | file_mode),  # rw-rw-r--
                         st_nlink=1,
                         st_size=video['size'],
                         st_mtime=video['mtime'],
@@ -658,8 +670,10 @@ class YouTubeAPIFUSE(Operations):
             else:
                 raise FuseOSError(errno.ENOENT)
 
-        st['st_uid'] = os.getuid()
-        st['st_gid'] = os.getgid()
+        # Set ownership to mythtv:mythtv (configurable via config)
+        filesystem_config = self.config.get('filesystem', {})
+        st['st_uid'] = filesystem_config.get('uid', 121)  # mythtv user
+        st['st_gid'] = filesystem_config.get('gid', 130)  # mythtv group
         return st
 
     def readdir(self, path, fh):
@@ -744,6 +758,89 @@ class YouTubeAPIFUSE(Operations):
         except Exception as e:
             print(f"Error reading {path}: {e}")
             raise FuseOSError(errno.EIO)
+
+    # Write operations (read-only filesystem - return appropriate errors)
+    def write(self, path, data, offset, fh):
+        """Write operation - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def truncate(self, path, length, fh=None):
+        """Truncate operation - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def chmod(self, path, mode):
+        """Change permissions - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def chown(self, path, uid, gid):
+        """Change ownership - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def utimens(self, path, times=None):
+        """Update timestamps - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def create(self, path, mode, fi=None):
+        """Create file - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def mkdir(self, path, mode):
+        """Create directory - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def rmdir(self, path):
+        """Remove directory - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def unlink(self, path):
+        """Remove file - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def rename(self, old, new):
+        """Rename file/directory - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def link(self, target, source):
+        """Create hard link - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def symlink(self, target, source):
+        """Create symbolic link - not supported for streaming content"""
+        raise FuseOSError(errno.EROFS)  # Read-only file system
+    
+    def flush(self, path, fh):
+        """Flush file - no-op for read-only content"""
+        return 0
+    
+    def release(self, path, fh):
+        """Release file handle - no-op for read-only content"""
+        return 0
+    
+    def fsync(self, path, datasync, fh):
+        """Sync file - no-op for read-only content"""
+        return 0
+    
+    def access(self, path, mode):
+        """Check access permissions"""
+        # Allow read access, deny write access
+        if mode & os.W_OK:
+            raise FuseOSError(errno.EACCES)  # Permission denied for write
+        return 0  # Allow read access
+
+    def statfs(self, path):
+        """Get filesystem statistics"""
+        return dict(
+            f_bsize=4096,    # Filesystem block size
+            f_frsize=4096,   # Fragment size
+            f_blocks=1000000,  # Total blocks
+            f_bfree=0,       # Free blocks (0 for read-only)
+            f_bavail=0,      # Available blocks
+            f_files=100000,  # Total file nodes
+            f_ffree=0,       # Free file nodes
+            f_favail=0,      # Available file nodes
+            f_flag=0,        # Mount flags
+            f_namemax=255    # Maximum filename length
+        )
 
     def check_playlist_changes(self):
         """Check for playlist changes using ETags - very quota efficient"""
@@ -1007,7 +1104,19 @@ def main():
         if force_full_refresh:
             fuse_system.refresh_videos(force_full_refresh=True)
         
-        fuse = FUSE(fuse_system, mount_point, nothreads=True, foreground=True, allow_other=True)
+        # Mount with appropriate options for media center use
+        mount_options = {
+            'nothreads': True,
+            'foreground': True,
+            'allow_other': True,
+            'default_permissions': False,
+            'ro': False,  # Not read-only at mount level
+            'big_writes': True,  # Enable big writes
+            'max_read': 131072,  # 128KB read buffer
+        }
+        
+        print(f"🔧 Mount options: {mount_options}")
+        fuse = FUSE(fuse_system, mount_point, **mount_options)
     except KeyboardInterrupt:
         print("\nUnmounting...")
 

@@ -1,5 +1,22 @@
 # YouTube FUSE Filesystem - Release Notes
 
+## Version 2.1.1 - 2025-06-27
+
+🔧 **Stability and Testing Update**
+
+### 🐛 **Bug Fixes & Improvements**
+- **Enhanced quota management** - Improved handling when quota is exhausted
+- **Demo filesystem validation** - Successfully tested fallback content system
+- **Production mount verification** - Confirmed `/srv/youtube` mount point functionality
+- **Permission system validation** - Verified `mythtv:mythtv` ownership and setgid permissions
+- **Process management** - Improved handling of multiple FUSE instances
+
+### 🧪 **Testing & Validation**
+- **Full permission testing** - Confirmed `rwxrwsr-x` directories and `rw-rw-r--` files
+- **Ownership verification** - Validated UID 121 (mythtv) and GID 130 (mythtv) 
+- **Demo mode testing** - Fallback content system working correctly
+- **Mount point management** - Proper handling of production vs test mounts
+
 ## Version 2.1.0 - 2025-01-15
 
 ⚡ **Quota Efficiency Update - Revolutionary Change Detection**
