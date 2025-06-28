@@ -1,5 +1,34 @@
 # YouTube FUSE Filesystem - Release Notes
 
+## Version 2.2.0 - 2025-06-27
+
+🏗️ **Major Project Reorganization**
+
+### 📁 **Project Structure Overhaul**
+- **Reorganized directory structure** for improved maintainability and navigation
+- **Source code** → `src/` directory (Core FUSE filesystem code)
+- **Scripts** → `scripts/` directory (Installation and utility scripts)
+- **Tools** → `tools/` directory organized by function:
+  - `tools/dashboard/` - Web-based control panel
+  - `tools/quota/` - API quota management  
+  - `tools/playlist/` - Playlist management
+- **Tests** → `tests/` directory (Test files and scripts)
+- **Documentation** → `docs/` directory (All documentation files)
+- **Configuration** → `config/` directory (Templates and examples)
+
+### 🔧 **Compatibility & Updates**
+- **Updated all path references** in scripts and service templates
+- **Backward compatibility wrapper** for `install.sh` in project root
+- **Enhanced project navigation** with clear directory structure
+- **Improved developer experience** with logical file organization
+
+### 📖 **Documentation Updates**
+- **New root README.md** with quick-start guide and structure overview
+- **Organized documentation** in dedicated `docs/` directory
+- **Updated installation instructions** to reflect new structure
+
+---
+
 ## Version 2.1.1 - 2025-06-27
 
 🔧 **Stability and Testing Update**
