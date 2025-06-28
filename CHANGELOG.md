@@ -1,24 +1,58 @@
 # YouTube FUSE Filesystem - Release Notes
 
-## Version 1.2.0 - 2025-06-26
+## Version 2.0.0 - 2025-01-15
 
-🗂️ **Playlist Subdirectory Organization & Auto-Discovery**
+🏭 **Production-Ready Release with Quota Management & Web Dashboard**
 
-### 🆕 New Features
+### 🆕 Major New Features
 
-#### 📁 **Automatic Playlist Organization**
-- **Subdirectory structure** - Each playlist now appears as its own directory
-- **Auto-discovery** - Automatically finds and mounts all user playlists when `auto_discover: true`
-- **Clean organization** - Videos are organized within their respective playlist directories
-- **Sanitized directory names** - Playlist titles converted to filesystem-safe directory names
+#### 🎛️ **Web Dashboard & Control Panel**
+- **Modern Flask-based web dashboard** - Real-time system monitoring and control
+- **Responsive HTML interface** - Mobile-friendly design that works on HTPC/media center setups
+- **Real-time status monitoring** - CPU, memory, disk usage, and FUSE mount status
+- **Playlist management interface** - Discover, enable/disable playlists through web UI
+- **Configuration management** - Update settings through web interface
+- **Emergency mode control** - Quick access to disable API calls during quota issues
 
-#### 🔍 **Auto-Discovery Configuration**
-- New `auto_discover` config option to enable automatic playlist detection
-- Discovers all user playlists via YouTube API
-- Creates individual subdirectories for each playlist
-- Maintains existing Watch Later and custom playlist support
+#### 📊 **Comprehensive Quota Management**
+- **Daily quota tracking** - Monitor YouTube API usage with configurable limits
+- **Rate limiting** - Request throttling to prevent quota exhaustion
+- **Emergency mode** - Automatic quota protection with cache-only operation
+- **Smart caching** - Configurable cache durations to reduce API calls
+- **Quota alerts** - Real-time notifications when approaching limits
+- **Usage analytics** - Detailed quota consumption tracking and reporting
 
-### 🗂️ **Directory Structure**
+#### 🗂️ **Advanced Playlist Management**
+- **Auto-discovery** - Automatically find and mount all user playlists
+- **Selective mounting** - Enable/disable specific playlists
+- **JSON API endpoints** - RESTful API for playlist operations
+- **CLI management tools** - Command-line scripts for automation
+- **Playlist organization** - Each playlist appears as its own directory
+
+#### � **Production Security & Reliability**
+- **Robust error handling** - Graceful degradation during API failures
+- **Configuration validation** - Automatic config file validation and repair
+- **Service management** - Enhanced systemd integration with proper lifecycle management
+- **Logging improvements** - Structured logging with rotation and levels
+- **Health monitoring** - Built-in health checks and status reporting
+
+### 🛠️ **New Components**
+
+#### 🌐 **Dashboard System**
+- `dashboard.py` - Flask web application with REST API
+- `templates/dashboard.html` - Modern responsive web interface
+- `start_dashboard.sh` - Easy dashboard launcher with dependency checking
+- `test_dashboard.py` - Comprehensive test suite for dashboard components
+
+#### 📈 **Quota Management System**
+- `quota_manager.py` - Core quota tracking and management
+- `quota_control.sh` - CLI tool for quota operations
+- `playlist_manager.py` - Playlist discovery and management
+- `playlist_manager_api.py` - JSON API for playlist operations
+
+### 🔧 **Enhanced Core Features**
+
+#### � **Directory Structure**
 ```
 /srv/youtube/
 ├── Watch_Later/                 # Watch Later playlist
@@ -27,17 +61,70 @@
 └── Custom_Playlist_Name/       # Custom playlist by ID
 ```
 
-### 🔧 **Technical Improvements**
-- Refactored FUSE operations (`getattr`, `readdir`, `open`, `read`) for directory support
-- Enhanced playlist metadata caching with nested video organization
-- Updated configuration structure with `auto_discover` option
-- Improved path handling for subdirectory navigation
+#### ⚙️ **Enhanced Configuration**
+```json
+{
+  "api_key": "your_api_key",
+  "auto_discover": true,
+  "quota_management": {
+    "daily_limit": 10000,
+    "emergency_mode": false,
+    "cache_duration": 3600
+  },
+  "rate_limiting": {
+    "requests_per_minute": 100,
+    "burst_limit": 50
+  },
+  "dashboard": {
+    "port": 5000,
+    "host": "0.0.0.0"
+  }
+}
+```
 
-### 💡 **Benefits**
-- **Better Organization**: Videos grouped by playlist for easier browsing
-- **Scalable**: Works with hundreds of playlists without cluttering root directory
-- **Intuitive Navigation**: Familiar directory-based file management
-- **Automatic Discovery**: No need to manually configure playlist IDs
+### 🌟 **REST API Endpoints**
+- `GET /api/status` - System and FUSE status
+- `GET /api/quota` - Quota usage and limits
+- `GET /api/playlists` - Discover available playlists
+- `POST /api/playlists/enable` - Enable specific playlists
+- `GET /api/config` - Current configuration
+- `POST /api/emergency` - Toggle emergency mode
+- `POST /api/fuse/restart` - Restart FUSE service
+
+### 📋 **Quick Start with Dashboard**
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the dashboard
+./start_dashboard.sh
+
+# Access web interface
+firefox http://localhost:5000
+
+# Or use CLI tools
+./quota_control.sh status
+python3 playlist_manager.py --discover
+```
+
+### 🎯 **Production Benefits**
+- **HTPC Integration**: Perfect for home theater PC setups with web management
+- **Quota Safety**: Never exceed YouTube API limits with intelligent management
+- **Scalability**: Handle hundreds of playlists efficiently
+- **Monitoring**: Real-time visibility into system health and performance
+- **Automation**: CLI tools for scripting and automation
+- **User-Friendly**: Web dashboard accessible from any device on network
+
+### ⬆️ **Upgrade Notes**
+- **Configuration**: Existing configs are automatically upgraded with new sections
+- **Backward Compatibility**: All existing functionality preserved
+- **New Dependencies**: Run `pip install -r requirements.txt` to install Flask and psutil
+- **Dashboard Access**: Start dashboard with `./start_dashboard.sh`
+
+### 📚 **New Documentation**
+- `QUOTA_MANAGEMENT.md` - Comprehensive quota management guide
+- `DASHBOARD.md` - Dashboard setup and usage instructions
+- `DASHBOARD_SUMMARY.md` - Quick reference for dashboard features
 
 ---
 

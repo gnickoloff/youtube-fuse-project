@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# YouTube FUSE Filesystem v1.1.0 Release Package Creator
+# YouTube FUSE Filesystem v2.0.0 Release Package Creator
 
-echo "🎉 Creating YouTube FUSE Filesystem v1.1.0 Release Package..."
+echo "🎉 Creating YouTube FUSE Filesystem v2.0.0 Release Package..."
 
-VERSION="1.1.0"
+VERSION="2.0.0"
 RELEASE_NAME="youtube-fuse-v${VERSION}"
 RELEASE_DATE=$(date +%Y-%m-%d)
 
@@ -13,7 +13,7 @@ mkdir -p "releases/$RELEASE_NAME"
 
 echo "📦 Packaging distribution files..."
 
-# Copy all distribution files
+# Copy core files
 cp youtube_api_fuse.py "releases/$RELEASE_NAME/"
 cp requirements.txt "releases/$RELEASE_NAME/"
 cp setup.sh "releases/$RELEASE_NAME/"
@@ -22,17 +22,41 @@ cp PREREQUISITES.md "releases/$RELEASE_NAME/"
 cp CHANGELOG.md "releases/$RELEASE_NAME/"
 cp youtube_config.example.json "releases/$RELEASE_NAME/"
 cp .gitignore "releases/$RELEASE_NAME/"
+cp package.json "releases/$RELEASE_NAME/"
+
+# Copy installation scripts
 cp install.sh "releases/$RELEASE_NAME/"
 cp uninstall.sh "releases/$RELEASE_NAME/"
 cp usage_examples.sh "releases/$RELEASE_NAME/"
 cp youtube-fuse.service.template "releases/$RELEASE_NAME/"
-cp package.json "releases/$RELEASE_NAME/"
+
+# Copy quota management components
+cp quota_manager.py "releases/$RELEASE_NAME/"
+cp quota_control.sh "releases/$RELEASE_NAME/"
+cp playlist_manager.py "releases/$RELEASE_NAME/"
+cp playlist_manager_api.py "releases/$RELEASE_NAME/"
+
+# Copy dashboard components
+cp dashboard.py "releases/$RELEASE_NAME/"
+cp start_dashboard.sh "releases/$RELEASE_NAME/"
+cp test_dashboard.py "releases/$RELEASE_NAME/"
+
+# Copy dashboard templates
+mkdir -p "releases/$RELEASE_NAME/templates"
+cp templates/dashboard.html "releases/$RELEASE_NAME/templates/"
+
+# Copy documentation
+cp QUOTA_MANAGEMENT.md "releases/$RELEASE_NAME/"
+cp DASHBOARD.md "releases/$RELEASE_NAME/"
+cp DASHBOARD_SUMMARY.md "releases/$RELEASE_NAME/"
 
 # Make scripts executable
 chmod +x "releases/$RELEASE_NAME/setup.sh"
 chmod +x "releases/$RELEASE_NAME/install.sh"
 chmod +x "releases/$RELEASE_NAME/uninstall.sh"
 chmod +x "releases/$RELEASE_NAME/usage_examples.sh"
+chmod +x "releases/$RELEASE_NAME/quota_control.sh"
+chmod +x "releases/$RELEASE_NAME/start_dashboard.sh"
 
 # Create release info
 cat > "releases/$RELEASE_NAME/RELEASE_INFO.txt" << EOF
@@ -40,27 +64,50 @@ YouTube FUSE Filesystem v${VERSION}
 Release Date: ${RELEASE_DATE}
 Git Tag: v${VERSION}
 
-🕒 AUTHENTIC TIMESTAMP SUPPORT! 🕒
+🏭 PRODUCTION-READY RELEASE WITH WEB DASHBOARD! 🏭
 
-This release adds authentic YouTube publish date support as file timestamps.
-Enhanced metadata accuracy for better media library organization.
+This major release transforms YouTube FUSE into a production-ready system with
+comprehensive quota management, web dashboard, and HTPC-optimized features.
 
 QUICK START:
 1. Extract this package
 2. Run: ./install.sh
-3. Follow the setup prompts
-4. Access your YouTube library at /srv/youtube
+3. Start the dashboard: ./start_dashboard.sh
+4. Access web interface at http://localhost:5000
+5. Mount your YouTube library at /srv/youtube
 
-NEW FEATURES (v1.1.0):
-✅ File timestamps reflect actual YouTube publish dates
-✅ Enhanced metadata accuracy for media organization
-✅ Better integration with backup tools and media applications
-✅ Authentic file attributes that match original content timeline
+NEW FEATURES (v2.0.0):
+✅ Modern web dashboard with real-time monitoring
+✅ Comprehensive YouTube API quota management
+✅ Advanced playlist discovery and management
+✅ Production-grade error handling and reliability
+✅ REST API for automation and integration
+✅ Emergency mode for quota protection
+✅ CLI tools for system administration
+✅ Responsive mobile-friendly interface
+
+DASHBOARD FEATURES:
+✅ Real-time system monitoring (CPU, memory, disk)
+✅ FUSE mount status and control
+✅ Quota usage tracking and alerts
+✅ Playlist management interface
+✅ Configuration management
+✅ Emergency mode control
+✅ Service start/stop/restart
+
+QUOTA MANAGEMENT:
+✅ Daily quota tracking with configurable limits
+✅ Smart rate limiting to prevent quota exhaustion
+✅ Automatic emergency mode activation
+✅ Intelligent caching to reduce API calls
+✅ Usage analytics and reporting
 
 CORE FEATURES:
 ✅ Mount YouTube playlists as virtual video files
 ✅ OAuth authentication for private playlists
 ✅ Auto-discovery of all user playlists
+✅ Authentic YouTube publish date timestamps
+✅ Subdirectory organization by playlist
 ✅ Systemd service integration
 ✅ HTPC optimization (MythTV support)
 ✅ Professional installer/uninstaller
@@ -72,7 +119,7 @@ REQUIREMENTS:
 - Python 3.7+
 - sudo access for installation
 
-For detailed information, see README.md and PREREQUISITES.md
+For detailed information, see README.md, DASHBOARD.md, and QUOTA_MANAGEMENT.md
 
 Repository: https://github.com/your-username/youtube-fuse-project
 EOF
@@ -110,4 +157,4 @@ echo "2. Push git tag: git push origin v${VERSION}"
 echo "3. Create GitHub release with these archives"
 echo "4. Update documentation with release notes"
 echo ""
-echo "🎯 v${VERSION} includes authentic YouTube publish date timestamps for enhanced media organization!"
+echo "🎯 v${VERSION} includes production-ready features with web dashboard and comprehensive quota management!"
