@@ -3,7 +3,8 @@
   "client_secrets_file": "client_secrets.json",
   "use_oauth": true,
   "playlists": {
-    "watch_later": true,
+    "auto_discover": true,
+    "watch_later": false,
     "custom_playlists": [
       "PLrAXtmRdnEQy6nuLMfO6uiyzVb7x_u0Tg"
     ]

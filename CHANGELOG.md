@@ -1,5 +1,46 @@
 # YouTube FUSE Filesystem - Release Notes
 
+## Version 1.2.0 - 2025-06-26
+
+🗂️ **Playlist Subdirectory Organization & Auto-Discovery**
+
+### 🆕 New Features
+
+#### 📁 **Automatic Playlist Organization**
+- **Subdirectory structure** - Each playlist now appears as its own directory
+- **Auto-discovery** - Automatically finds and mounts all user playlists when `auto_discover: true`
+- **Clean organization** - Videos are organized within their respective playlist directories
+- **Sanitized directory names** - Playlist titles converted to filesystem-safe directory names
+
+#### 🔍 **Auto-Discovery Configuration**
+- New `auto_discover` config option to enable automatic playlist detection
+- Discovers all user playlists via YouTube API
+- Creates individual subdirectories for each playlist
+- Maintains existing Watch Later and custom playlist support
+
+### 🗂️ **Directory Structure**
+```
+/srv/youtube/
+├── Watch_Later/                 # Watch Later playlist
+├── My_Cooking_Videos/          # Auto-discovered playlist  
+├── Gaming_Tutorials/           # Auto-discovered playlist
+└── Custom_Playlist_Name/       # Custom playlist by ID
+```
+
+### 🔧 **Technical Improvements**
+- Refactored FUSE operations (`getattr`, `readdir`, `open`, `read`) for directory support
+- Enhanced playlist metadata caching with nested video organization
+- Updated configuration structure with `auto_discover` option
+- Improved path handling for subdirectory navigation
+
+### 💡 **Benefits**
+- **Better Organization**: Videos grouped by playlist for easier browsing
+- **Scalable**: Works with hundreds of playlists without cluttering root directory
+- **Intuitive Navigation**: Familiar directory-based file management
+- **Automatic Discovery**: No need to manually configure playlist IDs
+
+---
+
 ## Version 1.1.0 - 2025-01-14
 
 🕒 **Authentic Timestamp Support**

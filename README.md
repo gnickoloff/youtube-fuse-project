@@ -5,14 +5,15 @@ A FUSE-based filesystem that mounts YouTube playlists as virtual video files on 
 ## Features
 
 - 🎥 Mount YouTube playlists as local directories
-- 📺 Stream videos directly without downloading
+- � **Auto-discover all user playlists** with subdirectory organization
+- �📺 Stream videos directly without downloading
 - 🔐 Support for both public playlists (API key) and private playlists (OAuth)
 - ⚡ Smart caching for better performance
 - 🎬 Watch Later playlist support
 - 📱 HTTP range requests for video seeking
 - 🔄 Auto-refresh playlist contents
 - 📅 Authentic file timestamps (YouTube publish dates)
-- 📅 Authentic file timestamps (YouTube publish dates)
+- �️ **Organized directory structure** - each playlist becomes a subdirectory
 
 ## Requirements
 
@@ -102,6 +103,7 @@ Edit `youtube_config.json`:
 |--------|-------------|---------|
 | `api_key` | YouTube Data API key | `"AIza..."`  |
 | `use_oauth` | Use OAuth instead of API key | `true`/`false` |
+| `auto_discover` | Auto-discover all user playlists | `true`/`false` |
 | `watch_later` | Include Watch Later playlist | `true`/`false` |
 | `custom_playlists` | List of playlist IDs to mount | `["PLxxx", "PLyyy"]` |
 | `refresh_interval` | Seconds between playlist updates | `300` |
@@ -109,29 +111,39 @@ Edit `youtube_config.json`:
 
 ## Usage Examples
 
+### Browse playlist directories
+```bash
+# List all available playlists
+ls /srv/youtube/
+
+# Browse a specific playlist
+ls "/srv/youtube/My_Cooking_Playlist/"
+```
+
 ### Stream with VLC
 ```bash
-vlc "./mount-point/[WL] My Favorite Video.mp4"
+# Play a video from a specific playlist
+vlc "/srv/youtube/Gaming_Videos/My Favorite Gaming Video.mp4"
 ```
 
 ### Copy to local file (downloads the video)
 ```bash
-cp "./mount-point/My Video.mp4" ~/Downloads/
+cp "/srv/youtube/Music_Playlist/Great Song.mp4" ~/Downloads/
 ```
 
 ### Browse with file manager
 ```bash
-nautilus ./mount-point/  # Linux
-open ./mount-point/      # macOS
+nautilus /srv/youtube/  # Linux - browse playlist directories
+open /srv/youtube/      # macOS
 ```
 
 ### Use with media scripts
 ```bash
-# Get video duration
-ffprobe "./mount-point/My Video.mp4"
+# Get video duration from specific playlist
+ffprobe "/srv/youtube/Tutorials/Python Tutorial.mp4"
 
 # Create thumbnail
-ffmpeg -i "./mount-point/My Video.mp4" -ss 10 -vframes 1 thumb.jpg
+ffmpeg -i "/srv/youtube/Cooking/Recipe Video.mp4" -ss 10 -vframes 1 thumb.jpg
 ```
 
 ## How It Works
@@ -159,6 +171,36 @@ ls -la /srv/youtube/Watch\ Later/
 #                                ^^^^^^^^^^^^^
 #                                Actual YouTube publish date
 ```
+
+## Directory Structure
+
+The filesystem organizes your playlists into a clean directory structure:
+
+```
+/srv/youtube/                    # Mount point
+├── Watch_Later/                 # Watch Later playlist (if enabled)
+│   ├── Video 1.mp4
+│   ├── Video 2.mp4
+│   └── ...
+├── My_Cooking_Playlist/         # Auto-discovered user playlist
+│   ├── Recipe Video 1.mp4
+│   ├── Recipe Video 2.mp4
+│   └── ...
+├── Gaming_Videos/               # Another user playlist
+│   ├── Game Review 1.mp4
+│   ├── Tutorial 1.mp4
+│   └── ...
+└── Custom_Playlist_Name/        # Custom playlist by ID
+    ├── Custom Video 1.mp4
+    └── Custom Video 2.mp4
+```
+
+### Auto-Discovery
+When `auto_discover: true` is set in your config, the filesystem will:
+- Automatically find all your YouTube playlists
+- Create a subdirectory for each playlist
+- Use sanitized playlist names as directory names
+- Organize videos within their respective playlist directories
 
 ## Troubleshooting
 
