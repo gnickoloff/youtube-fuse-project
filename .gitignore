@@ -24,6 +24,11 @@ venv/
 # Test directories
 test-mount/
 /tmp/youtube-test/
+tests/test-mount/
+
+# Build artifacts
+build/
+dist/
 
 # OS
 .DS_Store
