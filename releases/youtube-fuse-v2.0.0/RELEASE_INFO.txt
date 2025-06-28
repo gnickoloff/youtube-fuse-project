@@ -1,0 +1,62 @@
+YouTube FUSE Filesystem v2.0.0
+Release Date: 2025-06-27
+Git Tag: v2.0.0
+
+🏭 PRODUCTION-READY RELEASE WITH WEB DASHBOARD! 🏭
+
+This major release transforms YouTube FUSE into a production-ready system with
+comprehensive quota management, web dashboard, and HTPC-optimized features.
+
+QUICK START:
+1. Extract this package
+2. Run: ./install.sh
+3. Start the dashboard: ./start_dashboard.sh
+4. Access web interface at http://localhost:5000
+5. Mount your YouTube library at /srv/youtube
+
+NEW FEATURES (v2.0.0):
+✅ Modern web dashboard with real-time monitoring
+✅ Comprehensive YouTube API quota management
+✅ Advanced playlist discovery and management
+✅ Production-grade error handling and reliability
+✅ REST API for automation and integration
+✅ Emergency mode for quota protection
+✅ CLI tools for system administration
+✅ Responsive mobile-friendly interface
+
+DASHBOARD FEATURES:
+✅ Real-time system monitoring (CPU, memory, disk)
+✅ FUSE mount status and control
+✅ Quota usage tracking and alerts
+✅ Playlist management interface
+✅ Configuration management
+✅ Emergency mode control
+✅ Service start/stop/restart
+
+QUOTA MANAGEMENT:
+✅ Daily quota tracking with configurable limits
+✅ Smart rate limiting to prevent quota exhaustion
+✅ Automatic emergency mode activation
+✅ Intelligent caching to reduce API calls
+✅ Usage analytics and reporting
+
+CORE FEATURES:
+✅ Mount YouTube playlists as virtual video files
+✅ OAuth authentication for private playlists
+✅ Auto-discovery of all user playlists
+✅ Authentic YouTube publish date timestamps
+✅ Subdirectory organization by playlist
+✅ Systemd service integration
+✅ HTPC optimization (MythTV support)
+✅ Professional installer/uninstaller
+✅ Secure credential management
+✅ Cross-platform FUSE support
+
+REQUIREMENTS:
+- Linux/macOS with FUSE support
+- Python 3.7+
+- sudo access for installation
+
+For detailed information, see README.md, DASHBOARD.md, and QUOTA_MANAGEMENT.md
+
+Repository: https://github.com/your-username/youtube-fuse-project

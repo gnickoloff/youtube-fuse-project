@@ -1,23 +1,23 @@
 {
   "api_key": "",
   "client_secrets_file": "client_secrets.json",
-  "use_oauth": true,
   "playlists": {
-    "auto_discover": true,
-    "watch_later": false,
+    "auto_discover": false,
     "custom_playlists": [],
     "enabled_playlists": [],
     "max_playlists": 3,
-    "max_videos_per_playlist": 15
+    "max_videos_per_playlist": 15,
+    "watch_later": false
   },
   "quota_management": {
-    "enabled": true,
-    "daily_quota_limit": 5000,
-    "rate_limit_delay": 2.0,
-    "quota_reset_hour": 0,
+    "cache_duration": 7200,
+    "daily_quota_limit": 9000,
     "emergency_mode": false,
-    "cache_duration": 7200
+    "enabled": true,
+    "quota_reset_hour": 0,
+    "rate_limit_delay": 2
   },
   "refresh_interval": 3600,
+  "use_oauth": true,
   "video_quality": "best[ext=mp4]/best"
 }
