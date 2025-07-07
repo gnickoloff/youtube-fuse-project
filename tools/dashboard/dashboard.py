@@ -132,6 +132,13 @@ class YouTubeFUSEDashboard:
     def get_quota_efficiency_status(self):
         """Get quota efficiency and savings information"""
         try:
+            import sys
+            import os
+            # Add tools/quota to path for import
+            quota_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'quota')
+            if quota_path not in sys.path:
+                sys.path.append(quota_path)
+            
             from quota_analytics import QuotaAnalytics
             analytics = QuotaAnalytics()
             efficiency_report = analytics.get_quota_efficiency_report()
@@ -160,17 +167,38 @@ class YouTubeFUSEDashboard:
         
         # Try to get discovered playlists using the enhanced API
         discovered_playlists = []
-        if config.get('use_oauth', False):
+        
+        # Check if we have any valid credentials (OAuth or API key)
+        has_oauth = config.get('use_oauth', False) and os.path.exists(config.get('client_secrets_file', 'client_secrets.json'))
+        has_api_key = config.get('api_key') and config.get('api_key') != "YOUR_API_KEY_HERE"
+        has_env_api_key = os.environ.get('YOUTUBE_API_KEY')
+        
+        if has_oauth or has_api_key or has_env_api_key:
             try:
                 # Run enhanced playlist manager to get JSON list
-                result = subprocess.run(['python3', 'playlist_manager_api.py', 'discover-json'], 
+                result = subprocess.run(['python3', 'tools/playlist/playlist_manager_api.py', 'discover-json'], 
                                       capture_output=True, text=True, cwd='.')
                 if result.returncode == 0:
                     playlist_data = json.loads(result.stdout)
                     if not playlist_data.get('error'):
                         discovered_playlists = playlist_data.get('playlists', [])
+                else:
+                    print(f"Playlist discovery failed: {result.stderr}")
             except Exception as e:
                 print(f"Error getting playlists: {e}")
+        else:
+            # Use demo playlist manager when no credentials available
+            try:
+                result = subprocess.run(['python3', 'tools/playlist/demo_playlist_manager.py', 'discover-json'], 
+                                      capture_output=True, text=True, cwd='.')
+                if result.returncode == 0:
+                    playlist_data = json.loads(result.stdout)
+                    discovered_playlists = playlist_data.get('playlists', [])
+                    print("Using demo playlist manager (no credentials found)")
+                else:
+                    print(f"Demo playlist discovery failed: {result.stderr}")
+            except Exception as e:
+                print(f"Error getting demo playlists: {e}")
         
         return {
             'auto_discover': playlist_config.get('auto_discover', False),
@@ -309,13 +337,27 @@ def api_mount(action):
 def api_discover_playlists():
     """Discover available playlists"""
     try:
-        result = subprocess.run(['python3', 'playlist_manager_api.py', 'discover-json'], 
-                              capture_output=True, text=True, cwd='.')
+        config = dashboard.load_config()
+        
+        # Check if we have valid credentials
+        has_oauth = config.get('use_oauth', False) and os.path.exists(config.get('client_secrets_file', 'client_secrets.json'))
+        has_api_key = config.get('api_key') and config.get('api_key') != "YOUR_API_KEY_HERE"
+        has_env_api_key = os.environ.get('YOUTUBE_API_KEY')
+        
+        if has_oauth or has_api_key or has_env_api_key:
+            # Use real playlist manager
+            result = subprocess.run(['python3', 'tools/playlist/playlist_manager_api.py', 'discover-json'], 
+                                  capture_output=True, text=True, cwd='.')
+        else:
+            # Use demo playlist manager
+            result = subprocess.run(['python3', 'tools/playlist/demo_playlist_manager.py', 'discover-json'], 
+                                  capture_output=True, text=True, cwd='.')
+        
         if result.returncode == 0:
             playlist_data = json.loads(result.stdout)
             return jsonify(playlist_data)
         else:
-            return jsonify({'error': 'Failed to discover playlists', 'playlists': []}), 500
+            return jsonify({'error': 'Failed to discover playlists', 'playlists': [], 'stderr': result.stderr}), 500
     except Exception as e:
         return jsonify({'error': str(e), 'playlists': []}), 500
 
@@ -391,5 +433,5 @@ def api_refresh_mode():
 
 if __name__ == '__main__':
     print("Starting YouTube FUSE Dashboard...")
-    print("Access the dashboard at: http://localhost:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    print("Access the dashboard at: http://localhost:5001")
+    app.run(host='0.0.0.0', port=5001, debug=True)

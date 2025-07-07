@@ -391,6 +391,227 @@
             border-left: 4px solid #ffc107;
         }
         
+        /* Sortable Table Styles */
+        .file-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .file-table th,
+        .file-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .file-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+            position: relative;
+        }
+        
+        .file-table th:hover {
+            background: #e9ecef;
+        }
+        
+        .file-table th.sortable::after {
+            content: '↕️';
+            position: absolute;
+            right: 8px;
+            opacity: 0.5;
+        }
+        
+        .file-table th.sort-asc::after {
+            content: '↑';
+            opacity: 1;
+        }
+        
+        .file-table th.sort-desc::after {
+            content: '↓';
+            opacity: 1;
+        }
+        
+        .file-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .file-size {
+            text-align: right;
+        }
+        
+        .file-date {
+            white-space: nowrap;
+        }
+        
+        .playlist-tab {
+            display: inline-block;
+            padding: 8px 16px;
+            margin: 2px;
+            background: #e9ecef;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-size: 0.9em;
+        }
+        
+        .playlist-tab.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .playlist-tab:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .file-view-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .view-toggle {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .view-btn {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        
+        .view-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .playlist-tabs {
+            margin-bottom: 15px;
+        }
+        
+        .file-table-view {
+            display: none;
+        }
+        
+        .file-table-view.visible {
+            display: block;
+        }
+        
+        .playlist-management-section {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .playlist-management-section.visible {
+            display: block;
+        }
+        
+        .playlist-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .playlist-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        
+        .playlist-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .playlist-card.enabled {
+            border-color: #28a745;
+            background: rgba(40, 167, 69, 0.05);
+        }
+        
+        .playlist-card.disabled {
+            opacity: 0.6;
+        }
+        
+        .playlist-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        
+        .playlist-card-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+            line-height: 1.3;
+        }
+        
+        .playlist-card-meta {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .playlist-card-description {
+            font-size: 0.9em;
+            color: #777;
+            line-height: 1.4;
+            max-height: 3.6em;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        
+        .toggle-switch-large {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #ccc;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            flex-shrink: 0;
+        }
+        
+        .toggle-switch-large.active {
+            background: #28a745;
+        }
+        
+        .toggle-switch-large::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: left 0.3s ease;
+        }
+        
+        .playlist-card-content {
+            flex: 1;
+            min-width: 0;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .dashboard-grid {
@@ -565,12 +786,24 @@
                 <div class="action-buttons">
                     <button class="btn" onclick="discoverPlaylists()">Discover Playlists</button>
                     <button class="btn btn-success" onclick="saveConfig()">Save Changes</button>
+                    <button class="btn" onclick="togglePlaylistManagement()">Manage Playlists</button>
                 </div>
                 
-                <!-- Discovered Playlists List -->
-                <div id="discovered-playlists" class="discovered-playlists">
-                    <h3>Available Playlists</h3>
-                    <div class="playlist-list" id="playlist-list"></div>
+                <!-- Enhanced Playlist Management Section -->
+                <div id="playlist-management" class="playlist-management-section">
+                    <h3>📝 Select Playlists to Fetch</h3>
+                    <div class="action-buttons">
+                        <button class="btn btn-success" onclick="enableAllPlaylists()">Enable All</button>
+                        <button class="btn btn-warning" onclick="disableAllPlaylists()">Disable All</button>
+                        <button class="btn" onclick="refreshPlaylistList()">Refresh List</button>
+                    </div>
+                    <div id="playlist-cards-container">
+                        <div class="loading" id="playlists-loading">
+                            <div class="spinner"></div>
+                            <p>Loading playlists...</p>
+                        </div>
+                        <div class="playlist-grid" id="playlist-grid"></div>
+                    </div>
                 </div>
             </div>
             
@@ -602,12 +835,43 @@
         <!-- File Browser -->
         <div class="card">
             <h2>📂 File Browser</h2>
+            
+            <div class="file-view-controls">
+                <div class="view-toggle">
+                    <button class="view-btn active" id="tree-view-btn" onclick="switchFileView('tree')">🌲 Tree View</button>
+                    <button class="view-btn" id="table-view-btn" onclick="switchFileView('table')">📋 Table View</button>
+                </div>
+                <input type="text" class="search-box" id="file-search" placeholder="🔍 Search files..." onkeyup="filterFiles()">
+            </div>
+            
+            <div id="playlist-tabs" class="playlist-tabs"></div>
+            
             <div class="file-browser">
                 <div class="loading" id="files-loading">
                     <div class="spinner"></div>
                     <p>Loading files...</p>
                 </div>
-                <div id="file-list"></div>
+                
+                <!-- Tree View (default) -->
+                <div id="file-tree-view">
+                    <div id="file-list"></div>
+                </div>
+                
+                <!-- Table View -->
+                <div id="file-table-view" class="file-table-view">
+                    <table class="file-table" id="file-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" onclick="sortFiles('name')">📄 Name</th>
+                                <th class="sortable" onclick="sortFiles('playlist')">📁 Playlist</th>
+                                <th class="sortable file-size" onclick="sortFiles('size')">💾 Size</th>
+                                <th class="sortable file-date" onclick="sortFiles('date')">📅 Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="file-table-body">
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -618,6 +882,11 @@
     
     <script>
         let currentConfig = {};
+        let currentFiles = [];
+        let currentSort = { column: 'name', direction: 'asc' };
+        let currentView = 'tree';
+        let currentPlaylistFilter = 'all';
+        let discoveredPlaylists = [];
         
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
@@ -657,6 +926,7 @@
                 updateSystemStatus(status.system);
                 updateQuotaStatus(status.quota);
                 updatePlaylistStatus(status.playlists);
+                discoveredPlaylists = status.playlists.discovered_playlists || [];
             } catch (error) {
                 console.error('Failed to refresh status:', error);
             }
@@ -665,15 +935,20 @@
         async function refreshFiles() {
             const loadingDiv = document.getElementById('files-loading');
             const fileListDiv = document.getElementById('file-list');
+            const fileTableBody = document.getElementById('file-table-body');
             
             loadingDiv.style.display = 'block';
             fileListDiv.innerHTML = '';
+            if (fileTableBody) fileTableBody.innerHTML = '';
             
             try {
                 const files = await fetchAPI('/files');
+                currentFiles = files;
                 displayFiles(files);
+                updatePlaylistTabs(files);
             } catch (error) {
                 fileListDiv.innerHTML = '<p>Error loading files</p>';
+                if (fileTableBody) fileTableBody.innerHTML = '<tr><td colspan="4">Error loading files</td></tr>';
             } finally {
                 loadingDiv.style.display = 'none';
             }
@@ -730,7 +1005,38 @@
             document.getElementById('max-videos').value = playlists.max_videos_per_playlist;
         }
         
+        function updatePlaylistTabs(files) {
+            const tabsContainer = document.getElementById('playlist-tabs');
+            let html = '<button class="playlist-tab active" onclick="filterByPlaylist(\'all\')">📂 All Playlists</button>';
+            
+            files.forEach(playlist => {
+                html += `<button class="playlist-tab" onclick="filterByPlaylist('${playlist.playlist}')">${playlist.playlist} (${playlist.count})</button>`;
+            });
+            
+            tabsContainer.innerHTML = html;
+        }
+        
+        function filterByPlaylist(playlistName) {
+            currentPlaylistFilter = playlistName;
+            
+            // Update tab states
+            document.querySelectorAll('.playlist-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            displayFiles(currentFiles);
+        }
+        
         function displayFiles(files) {
+            if (currentView === 'tree') {
+                displayFilesTree(files);
+            } else {
+                displayFilesTable(files);
+            }
+        }
+        
+        function displayFilesTree(files) {
             const fileListDiv = document.getElementById('file-list');
             
             if (files.length === 0) {
@@ -738,8 +1044,13 @@
                 return;
             }
             
+            let filteredFiles = files;
+            if (currentPlaylistFilter !== 'all') {
+                filteredFiles = files.filter(playlist => playlist.playlist === currentPlaylistFilter);
+            }
+            
             let html = '<ul class="file-tree">';
-            files.forEach(playlist => {
+            filteredFiles.forEach(playlist => {
                 html += `<li class="playlist-folder">📁 ${playlist.playlist} (${playlist.count} videos)</li>`;
                 playlist.files.forEach(file => {
                     const date = new Date(file.mtime).toLocaleDateString();
@@ -750,6 +1061,142 @@
             html += '</ul>';
             
             fileListDiv.innerHTML = html;
+        }
+        
+        function displayFilesTable(files) {
+            const tableBody = document.getElementById('file-table-body');
+            
+            if (files.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4">No files found. Make sure the FUSE filesystem is mounted.</td></tr>';
+                return;
+            }
+            
+            // Flatten files for table view
+            let allFiles = [];
+            files.forEach(playlist => {
+                playlist.files.forEach(file => {
+                    allFiles.push({
+                        ...file,
+                        playlist: playlist.playlist
+                    });
+                });
+            });
+            
+            // Filter by playlist
+            if (currentPlaylistFilter !== 'all') {
+                allFiles = allFiles.filter(file => file.playlist === currentPlaylistFilter);
+            }
+            
+            // Sort files
+            allFiles.sort((a, b) => {
+                let aVal, bVal;
+                switch (currentSort.column) {
+                    case 'name':
+                        aVal = a.name.toLowerCase();
+                        bVal = b.name.toLowerCase();
+                        break;
+                    case 'playlist':
+                        aVal = a.playlist.toLowerCase();
+                        bVal = b.playlist.toLowerCase();
+                        break;
+                    case 'size':
+                        aVal = a.size;
+                        bVal = b.size;
+                        break;
+                    case 'date':
+                        aVal = new Date(a.mtime);
+                        bVal = new Date(b.mtime);
+                        break;
+                    default:
+                        return 0;
+                }
+                
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            let html = '';
+            allFiles.forEach(file => {
+                const date = new Date(file.mtime).toLocaleDateString();
+                const size = (file.size / (1024 * 1024)).toFixed(1);
+                html += `
+                    <tr>
+                        <td>🎬 ${file.name}</td>
+                        <td>📁 ${file.playlist}</td>
+                        <td class="file-size">${size} MB</td>
+                        <td class="file-date">${date}</td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = html;
+        }
+        
+        function switchFileView(view) {
+            currentView = view;
+            
+            const treeView = document.getElementById('file-tree-view');
+            const tableView = document.getElementById('file-table-view');
+            const treeBtn = document.getElementById('tree-view-btn');
+            const tableBtn = document.getElementById('table-view-btn');
+            
+            if (view === 'tree') {
+                treeView.style.display = 'block';
+                tableView.classList.remove('visible');
+                treeBtn.classList.add('active');
+                tableBtn.classList.remove('active');
+            } else {
+                treeView.style.display = 'none';
+                tableView.classList.add('visible');
+                treeBtn.classList.remove('active');
+                tableBtn.classList.add('active');
+            }
+            
+            displayFiles(currentFiles);
+        }
+        
+        function sortFiles(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            
+            // Update sort indicators
+            document.querySelectorAll('.file-table th').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+            });
+            
+            const currentHeader = Array.from(document.querySelectorAll('.file-table th')).find(th => 
+                th.textContent.toLowerCase().includes(column)
+            );
+            
+            if (currentHeader) {
+                currentHeader.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+            }
+            
+            displayFiles(currentFiles);
+        }
+        
+        function filterFiles() {
+            const searchTerm = document.getElementById('file-search').value.toLowerCase();
+            
+            if (!searchTerm) {
+                displayFiles(currentFiles);
+                return;
+            }
+            
+            const filteredFiles = currentFiles.map(playlist => ({
+                ...playlist,
+                files: playlist.files.filter(file => 
+                    file.name.toLowerCase().includes(searchTerm) ||
+                    playlist.playlist.toLowerCase().includes(searchTerm)
+                )
+            })).filter(playlist => playlist.files.length > 0);
+            
+            displayFiles(filteredFiles);
         }
         
         async function loadConfig() {
@@ -788,6 +1235,175 @@
             currentConfig.playlists = currentConfig.playlists || {};
             currentConfig.playlists.max_playlists = parseInt(document.getElementById('max-playlists').value);
             currentConfig.playlists.max_videos_per_playlist = parseInt(document.getElementById('max-videos').value);
+        }
+        
+        function togglePlaylistManagement() {
+            const managementSection = document.getElementById('playlist-management');
+            if (managementSection.classList.contains('visible')) {
+                managementSection.classList.remove('visible');
+            } else {
+                managementSection.classList.add('visible');
+                refreshPlaylistList();
+            }
+        }
+        
+        async function refreshPlaylistList() {
+            const loadingDiv = document.getElementById('playlists-loading');
+            const gridDiv = document.getElementById('playlist-grid');
+            
+            loadingDiv.style.display = 'block';
+            gridDiv.innerHTML = '';
+            
+            try {
+                const data = await fetchAPI('/playlists/discover');
+                
+                if (data.error) {
+                    gridDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+                    return;
+                }
+                
+                discoveredPlaylists = data.playlists || [];
+                displayPlaylistCards(discoveredPlaylists);
+                showAlert(`Found ${discoveredPlaylists.length} playlists!`);
+            } catch (error) {
+                gridDiv.innerHTML = '<p>Failed to discover playlists</p>';
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+        
+        function displayPlaylistCards(playlists) {
+            const gridDiv = document.getElementById('playlist-grid');
+            
+            if (playlists.length === 0) {
+                gridDiv.innerHTML = '<p>No playlists found. Make sure you have OAuth configured and proper permissions.</p>';
+                return;
+            }
+            
+            const enabledPlaylists = currentConfig.playlists?.enabled_playlists || [];
+            
+            let html = '';
+            playlists.forEach(playlist => {
+                const isEnabled = enabledPlaylists.includes(playlist.id);
+                html += `
+                    <div class="playlist-card ${isEnabled ? 'enabled' : 'disabled'}">
+                        <div class="playlist-card-header">
+                            <div class="playlist-card-content">
+                                <div class="playlist-card-title">${playlist.title}</div>
+                                <div class="playlist-card-meta">${playlist.itemCount} videos • ${playlist.id}</div>
+                                ${playlist.description ? `<div class="playlist-card-description">${playlist.description}</div>` : ''}
+                            </div>
+                            <div class="toggle-switch-large ${isEnabled ? 'active' : ''}" 
+                                 onclick="togglePlaylistInCard('${playlist.id}', this)"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            gridDiv.innerHTML = html;
+        }
+        
+        async function togglePlaylistInCard(playlistId, toggleElement) {
+            try {
+                const isEnabled = toggleElement.classList.contains('active');
+                
+                await fetchAPI('/playlists/enable', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        playlist_id: playlistId, 
+                        enabled: !isEnabled 
+                    })
+                });
+                
+                toggleElement.classList.toggle('active');
+                const card = toggleElement.closest('.playlist-card');
+                card.classList.toggle('enabled');
+                card.classList.toggle('disabled');
+                
+                // Update local config
+                currentConfig.playlists = currentConfig.playlists || {};
+                currentConfig.playlists.enabled_playlists = currentConfig.playlists.enabled_playlists || [];
+                
+                if (!isEnabled) {
+                    if (!currentConfig.playlists.enabled_playlists.includes(playlistId)) {
+                        currentConfig.playlists.enabled_playlists.push(playlistId);
+                    }
+                } else {
+                    const index = currentConfig.playlists.enabled_playlists.indexOf(playlistId);
+                    if (index > -1) {
+                        currentConfig.playlists.enabled_playlists.splice(index, 1);
+                    }
+                }
+                
+                showAlert(`Playlist ${!isEnabled ? 'enabled' : 'disabled'}!`);
+            } catch (error) {
+                showAlert('Failed to toggle playlist', 'danger');
+            }
+        }
+        
+        async function enableAllPlaylists() {
+            if (discoveredPlaylists.length === 0) {
+                showAlert('No playlists available', 'warning');
+                return;
+            }
+            
+            try {
+                for (const playlist of discoveredPlaylists) {
+                    await fetchAPI('/playlists/enable', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            playlist_id: playlist.id, 
+                            enabled: true 
+                        })
+                    });
+                }
+                
+                // Update UI
+                document.querySelectorAll('.toggle-switch-large').forEach(toggle => {
+                    toggle.classList.add('active');
+                    toggle.closest('.playlist-card').classList.add('enabled');
+                    toggle.closest('.playlist-card').classList.remove('disabled');
+                });
+                
+                showAlert(`Enabled all ${discoveredPlaylists.length} playlists!`);
+                loadConfig(); // Refresh config
+            } catch (error) {
+                showAlert('Failed to enable all playlists', 'danger');
+            }
+        }
+        
+        async function disableAllPlaylists() {
+            if (discoveredPlaylists.length === 0) {
+                showAlert('No playlists available', 'warning');
+                return;
+            }
+            
+            try {
+                for (const playlist of discoveredPlaylists) {
+                    await fetchAPI('/playlists/enable', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            playlist_id: playlist.id, 
+                            enabled: false 
+                        })
+                    });
+                }
+                
+                // Update UI
+                document.querySelectorAll('.toggle-switch-large').forEach(toggle => {
+                    toggle.classList.remove('active');
+                    toggle.closest('.playlist-card').classList.remove('enabled');
+                    toggle.closest('.playlist-card').classList.add('disabled');
+                });
+                
+                showAlert(`Disabled all ${discoveredPlaylists.length} playlists!`);
+                loadConfig(); // Refresh config
+            } catch (error) {
+                showAlert('Failed to disable all playlists', 'danger');
+            }
         }
         
         async function toggleEmergency() {
@@ -871,62 +1487,17 @@
                     return;
                 }
                 
-                displayDiscoveredPlaylists(data.playlists);
-                showAlert(`Found ${data.playlists.length} playlists!`);
+                discoveredPlaylists = data.playlists || [];
+                showAlert(`Found ${discoveredPlaylists.length} playlists!`);
+                
+                // Auto-show management section if playlists found
+                if (discoveredPlaylists.length > 0) {
+                    const managementSection = document.getElementById('playlist-management');
+                    managementSection.classList.add('visible');
+                    displayPlaylistCards(discoveredPlaylists);
+                }
             } catch (error) {
                 showAlert('Failed to discover playlists', 'danger');
-            }
-        }
-        
-        function displayDiscoveredPlaylists(playlists) {
-            const discoveredDiv = document.getElementById('discovered-playlists');
-            
-            if (playlists.length === 0) {
-                discoveredDiv.innerHTML = '<p>No playlists found. Make sure you have OAuth configured.</p>';
-                discoveredDiv.style.display = 'block';
-                return;
-            }
-            
-            let html = '<h3>Available Playlists</h3><div class="playlist-list">';
-            playlists.forEach(playlist => {
-                const isEnabled = playlist.enabled;
-                html += `
-                    <div class="playlist-item ${isEnabled ? 'playlist-enabled' : ''}">
-                        <div class="playlist-info">
-                            <div class="playlist-title">${playlist.title}</div>
-                            <div class="playlist-meta">${playlist.itemCount} videos • ${playlist.id}</div>
-                            ${playlist.description ? `<div class="playlist-description">${playlist.description}</div>` : ''}
-                        </div>
-                        <div class="toggle-switch ${isEnabled ? 'active' : ''}" 
-                             onclick="togglePlaylist('${playlist.id}', this)"></div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            
-            discoveredDiv.innerHTML = html;
-            discoveredDiv.style.display = 'block';
-        }
-        
-        async function togglePlaylist(playlistId, toggleElement) {
-            try {
-                const isEnabled = toggleElement.classList.contains('active');
-                
-                await fetchAPI('/playlists/enable', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        playlist_id: playlistId, 
-                        enabled: !isEnabled 
-                    })
-                });
-                
-                toggleElement.classList.toggle('active');
-                toggleElement.parentElement.classList.toggle('playlist-enabled');
-                
-                showAlert(`Playlist ${!isEnabled ? 'enabled' : 'disabled'}!`);
-            } catch (error) {
-                showAlert('Failed to toggle playlist', 'danger');
             }
         }
     </script>

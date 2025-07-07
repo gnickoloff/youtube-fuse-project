@@ -7,6 +7,12 @@
 echo "🎥 YouTube FUSE Dashboard Launcher"
 echo "=================================="
 
+# Navigate to project root if we're in the dashboard directory
+if [[ "$(basename "$(pwd)")" == "dashboard" ]]; then
+    cd ../../
+    echo "📁 Changed to project root: $(pwd)"
+fi
+
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
     echo "❌ Virtual environment not found. Please run setup.sh first."
@@ -80,11 +86,11 @@ echo ""
 echo "🚀 Starting YouTube FUSE Dashboard..."
 echo ""
 echo "   Dashboard will be available at:"
-echo "   🌐 Local:   http://localhost:5000"
-echo "   🌐 Network: http://$LOCAL_IP:5000"
+echo "   🌐 Local:   http://localhost:5001"
+echo "   🌐 Network: http://$LOCAL_IP:5001"
 echo ""
 echo "   Press Ctrl+C to stop the dashboard"
 echo ""
 
 # Start the dashboard
-python3 dashboard.py
+python3 tools/dashboard/dashboard.py
