@@ -50,7 +50,10 @@ class YouTubeAPIFUSE(Operations):
             self.quota_reset_time = time.time() + (86400 - (time.time() % 86400))
         
         self.authenticate()
-        self.refresh_videos()
+        
+        # Initialize empty state so FUSE mount can start immediately
+        self.playlists = {}
+        self.refresh_thread = None  # Will be started after mount
     
     def load_config(self):
         """Load configuration from JSON file and environment variables"""
@@ -500,16 +503,23 @@ class YouTubeAPIFUSE(Operations):
                     id=playlist_id
                 ).execute()
             
-            try:
-                playlist_response = self.make_api_call(f"get_playlist_metadata({playlist_id})", get_metadata, quota_cost=1)
-                
-                if playlist_response and playlist_response['items']:
-                    playlist_title = playlist_response['items'][0]['snippet']['title']
-                else:
+            # Check for custom playlist title first
+            custom_titles = playlist_config.get('playlist_titles', {})
+            if playlist_id in custom_titles:
+                playlist_title = custom_titles[playlist_id]
+                print(f"📝 Using custom title for {playlist_id}: {playlist_title}")
+            else:
+                # Get playlist metadata from API
+                try:
+                    playlist_response = self.make_api_call(f"get_playlist_metadata({playlist_id})", get_metadata, quota_cost=1)
+                    
+                    if playlist_response and playlist_response['items']:
+                        playlist_title = playlist_response['items'][0]['snippet']['title']
+                    else:
+                        playlist_title = f"Playlist_{playlist_id}"
+                except Exception as e:
+                    print(f"Error getting playlist metadata for {playlist_id}: {e}")
                     playlist_title = f"Playlist_{playlist_id}"
-            except Exception as e:
-                print(f"Error getting playlist metadata for {playlist_id}: {e}")
-                playlist_title = f"Playlist_{playlist_id}"
             
             sanitized_name = self.sanitize_filename(playlist_title)
             playlist_videos = self.get_playlist_videos(playlist_id)
@@ -678,10 +688,14 @@ class YouTubeAPIFUSE(Operations):
 
     def readdir(self, path, fh):
         """List directory contents"""
-        self.refresh_videos()
-
+        # Don't call refresh_videos here - it's already running in background
+        
         if path == '/':
             # Root directory - list all playlist directories
+            if not self.playlists:
+                # Show a loading indicator if no playlists loaded yet
+                return ['.', '..', '.loading_playlists']
+            
             playlist_dirs = [playlist_data['sanitized_name'] 
                            for playlist_data in self.playlists.values()]
             return ['.', '..'] + playlist_dirs
@@ -692,9 +706,16 @@ class YouTubeAPIFUSE(Operations):
                 # This is a playlist directory - list videos
                 playlist_dir = path_parts[0]
                 
+                # Handle loading indicator
+                if playlist_dir == '.loading_playlists':
+                    raise FuseOSError(errno.ENOENT)
+                
                 # Find the playlist
                 for playlist_id, playlist_data in self.playlists.items():
                     if playlist_data['sanitized_name'] == playlist_dir:
+                        if not playlist_data['videos']:
+                            # Show loading indicator if no videos loaded yet
+                            return ['.', '..', '.loading_videos']
                         return ['.', '..'] + list(playlist_data['videos'].keys())
                 
                 raise FuseOSError(errno.ENOENT)
@@ -1041,22 +1062,30 @@ class YouTubeAPIFUSE(Operations):
                 
                 # Get playlist metadata if needed
                 if playlist_id not in self.playlists:
-                    def get_metadata():
-                        return self.youtube_service.playlists().list(
-                            part='snippet',
-                            id=playlist_id
-                        ).execute()
-                    
-                    try:
-                        playlist_response = self.make_api_call(f"get_playlist_metadata({playlist_id})", get_metadata, quota_cost=1)
+                    # Check for custom playlist title first
+                    playlist_config = self.config.get('playlists', {})
+                    custom_titles = playlist_config.get('playlist_titles', {})
+                    if playlist_id in custom_titles:
+                        playlist_title = custom_titles[playlist_id]
+                        print(f"📝 Using custom title for {playlist_id}: {playlist_title}")
+                    else:
+                        # Get playlist metadata from API
+                        def get_metadata():
+                            return self.youtube_service.playlists().list(
+                                part='snippet',
+                                id=playlist_id
+                            ).execute()
                         
-                        if playlist_response and playlist_response['items']:
-                            playlist_title = playlist_response['items'][0]['snippet']['title']
-                        else:
+                        try:
+                            playlist_response = self.make_api_call(f"get_playlist_metadata({playlist_id})", get_metadata, quota_cost=1)
+                            
+                            if playlist_response and playlist_response['items']:
+                                playlist_title = playlist_response['items'][0]['snippet']['title']
+                            else:
+                                playlist_title = f"Playlist_{playlist_id}"
+                        except Exception as e:
+                            print(f"Error getting playlist metadata for {playlist_id}: {e}")
                             playlist_title = f"Playlist_{playlist_id}"
-                    except Exception as e:
-                        print(f"Error getting playlist metadata for {playlist_id}: {e}")
-                        playlist_title = f"Playlist_{playlist_id}"
                     
                     sanitized_name = self.sanitize_filename(playlist_title)
                     self.playlists[playlist_id] = {
@@ -1101,8 +1130,16 @@ def main():
     
     try:
         fuse_system = YouTubeAPIFUSE()
+        
+        # Start background refresh after FUSE system is initialized
+        print("🔄 Starting background playlist refresh...")
+        fuse_system.refresh_thread = threading.Thread(target=fuse_system.refresh_videos, daemon=True)
         if force_full_refresh:
-            fuse_system.refresh_videos(force_full_refresh=True)
+            fuse_system.refresh_thread = threading.Thread(
+                target=lambda: fuse_system.refresh_videos(force_full_refresh=True), 
+                daemon=True
+            )
+        fuse_system.refresh_thread.start()
         
         # Mount with appropriate options for media center use
         mount_options = {
@@ -1116,6 +1153,7 @@ def main():
         }
         
         print(f"🔧 Mount options: {mount_options}")
+        print("🚀 FUSE filesystem ready - background refresh in progress...")
         fuse = FUSE(fuse_system, mount_point, **mount_options)
     except KeyboardInterrupt:
         print("\nUnmounting...")
